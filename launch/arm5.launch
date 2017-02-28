@@ -1,0 +1,8 @@
+ <launch>
+     <param name="robot_description" textfile="g500ARM5.urdf"/>
+    <node pkg="robot_state_publisher" type="state_publisher" name="rob_st_pub" >
+      <remap from="joint_states" to="/uwsim/joint_state" />
+      <param name="publish_frequency" type="double" value="50.0" />
+      <param name="tf_prefix" type="string" value="arm5" /> 
+    </node>
+  </launch>
