@@ -1,4 +1,4 @@
-#include "grasper/joint_offset.h"
+#include "joint_offset/joint_offset.h"
 
 
 void JointOffset::readJointsCallback(const sensor_msgs::JointState::ConstPtr& m){
