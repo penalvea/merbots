@@ -8,6 +8,8 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Twist.h>
 #include <task_priority/Error_msg.h>
+#include <merbots_grasp_srv/grasp_srv.h>
+#include <std_srvs/Empty.h>
 
 
 class Goal{
@@ -86,5 +88,25 @@ public:
   task_priority::Error_msg getMsg(Eigen::MatrixXd vels, std::vector<int> mask);
 };
 typedef boost::shared_ptr<GoalJointsPosition> GoalJointsPositionPtr;
+
+class GoalGrasp: public Goal{
+  KDL::ChainFkSolverPos_recursive *fk_chain_;
+  std::vector<int> mask_cart_;
+  geometry_msgs::Pose goal_;
+  std::vector<int> joints_relation_;
+  ros::NodeHandle nh_;
+  ros::Subscriber pose_sub_;
+  Eigen::MatrixXd last_cartesian_vel_;
+  int step_;
+  ros::ServiceClient grasp_client_, enable_keep_position_, disable_keep_position_;
+
+  void poseCallback(const geometry_msgs::Pose::ConstPtr& msg);
+public:
+  GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel);
+  ~GoalGrasp();
+  Eigen::MatrixXd getGoal(std::vector<float> joints, std::vector<float> odom);
+  task_priority::Error_msg getMsg(Eigen::MatrixXd vels, std::vector<int> mask);
+};
+typedef boost::shared_ptr<GoalGrasp> GoalGraspPtr;
 
 #endif // GOAL_HPP

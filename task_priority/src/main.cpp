@@ -247,6 +247,14 @@ int main(int argc, char **argv){
         GoalJointsPositionPtr goal_joint(new GoalJointsPosition(joints_position));
         goal=goal_joint;
       }
+      else if(goal_type=="Grasp"){
+        ROS_INFO("        Goal: Grasp");
+        std::string goal_topic;
+        nh.getParam(task_names[j]+"/goal/topic", goal_topic);
+        ROS_INFO("            ROS Node: %s", goal_topic.c_str());
+        GoalGraspPtr goal_ros_pose(new GoalGrasp(chains[chain_id[task_chain]], task_mask_cartesian, goal_topic, nh, chain_joint_relations[chain_id[task_chain]], max_cartesian_vel));
+        goal=goal_ros_pose;
+      }
       else{
         ROS_ERROR("Goal must be Fixed, ROS_Pose, ROS_Twist or Joints");
       }
@@ -264,7 +272,7 @@ int main(int argc, char **argv){
 
   std::string arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic;
   nh.getParam("arm_joint_state_topic", arm_joint_state_topic);
-  ROS_INFO("Joint State Topi: %s", arm_joint_state_topic.c_str());
+  ROS_INFO("Joint State Topic: %s", arm_joint_state_topic.c_str());
   nh.getParam("arm_joint_command_topic", arm_joint_command_topic);
   ROS_INFO("Command Joint Topic: %s", arm_joint_state_topic.c_str());
   nh.getParam("vehicle_tf", vehicle_tf);

@@ -27,8 +27,8 @@ chain_joint_relations_=chain_joint_relations;
 
 joints_sub_=nh_.subscribe<sensor_msgs::JointState>(arm_joint_state_topic, 1, &Controller::jointsCallback, this);
 joints_pub_=nh_.advertise<sensor_msgs::JointState>(arm_joint_command_topic,1);
-vehicle_pub_=nh_.advertise<nav_msgs::Odometry>(vehicle_command_topic, 1);
-//vehicle_pub_=nh_.advertise<auv_msgs::BodyVelocityReq>(vehicle_command_topic, 1);
+//vehicle_pub_=nh_.advertise<nav_msgs::Odometry>(vehicle_command_topic, 1);
+vehicle_pub_=nh_.advertise<auv_msgs::BodyVelocityReq>(vehicle_command_topic, 1);
 
 status_pub_=nh_.advertise<task_priority::TaskPriority_msg>("/task_priority/status", 1);
 }
@@ -205,7 +205,7 @@ void Controller::publishVels(Eigen::MatrixXd vels){
   vehicle_msg.goal.priority=10;
   vehicle_msg.twist.linear.x=0.5*vels(0,0);
   vehicle_msg.twist.linear.y=0.5*vels(1,0);
-  vehicle_msg.twist.linear.z=0.3*vels(2,0);
+  vehicle_msg.twist.linear.z=0.5*vels(2,0);
   vehicle_msg.twist.angular.x=0;
   vehicle_msg.twist.angular.y=0;
   vehicle_msg.twist.angular.z=0.5*vels(3,0);
@@ -225,13 +225,13 @@ void Controller::publishVels(Eigen::MatrixXd vels){
   joint_msg.name.push_back("JawOpening");
 
   for(int i=5; i<9; i++){
-    joint_msg.velocity.push_back(vels(i,0));
+    joint_msg.velocity.push_back(5*vels(i,0));
   }
   joint_msg.velocity.push_back(0);
   joint_msg.header.stamp=ros::Time::now();
 
-  vehicle_pub_.publish(odom_msg);
-  //vehicle_pub_.publish(vehicle_msg);
+  //vehicle_pub_.publish(odom_msg);
+  vehicle_pub_.publish(vehicle_msg);
   joints_pub_.publish(joint_msg);
   publishStatus(vels);
   ros::spinOnce();

@@ -281,3 +281,134 @@ task_priority::Error_msg GoalJointsPosition::getMsg(Eigen::MatrixXd vels, std::v
   }
   return msg;
 }
+
+
+
+
+
+GoalGrasp::GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel):Goal(){
+  KDL::Chain chain_odom;
+  chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
+  chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransY)));
+  chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransZ)));
+  chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotX)));
+  chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotY)));
+  chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ)));
+  chain_odom.addChain(chain);
+
+  fk_chain_=new KDL::ChainFkSolverPos_recursive(chain_odom);
+  mask_cart_=mask_cart;
+  joints_relation_=joints_relation;
+  nh_=nh;
+  step_=0;
+  grasp_client_= nh_.serviceClient<merbots_grasp_srv::grasp_srv>("/doGrasping");
+  enable_keep_position_=nh_.serviceClient<std_srvs::Empty>("/cola2_control/enable_keep_position_4dof");
+  disable_keep_position_=nh_.serviceClient<std_srvs::Empty>("/cola2_control/disable_keep_position");
+
+
+  setMaxCartesianVel(max_cartesian_vel);
+
+  pose_sub_=nh_.subscribe<geometry_msgs::Pose>(pose_topic, 1, &GoalGrasp::poseCallback, this);
+}
+GoalGrasp::~GoalGrasp(){}
+
+void GoalGrasp::poseCallback(const geometry_msgs::Pose::ConstPtr &msg){
+  std::cout<<"pose received"<<std::endl;
+  goal_.orientation=msg->orientation;
+  goal_.position=msg->position;
+  setInitialized(true);
+}
+
+Eigen::MatrixXd GoalGrasp::getGoal(std::vector<float> joints, std::vector<float> odom){
+  KDL::JntArray jq(odom.size()+joints_relation_.size());
+  for(int i=0; i<odom.size(); i++){
+    jq(i)=odom[i];
+  }
+  for(int i=0; i<joints_relation_.size(); i++){
+    jq(i+odom.size())=joints[joints_relation_[i]];
+  }
+
+  KDL::Frame cartpos;
+  fk_chain_->JntToCart(jq, cartpos);
+  double x,y,z,w;
+  cartpos.M.GetQuaternion(x,y,z,w);
+  Eigen::Quaterniond quat_current(w,x,y,z);
+  Eigen::Quaterniond quat_desired(goal_.orientation.w, goal_.orientation.x, goal_.orientation.y, goal_.orientation.z);
+  Eigen::Vector3d diff=quaternionsSubstraction(quat_desired, quat_current);
+  Eigen::MatrixXd cartesian_vel(6,1);
+  cartesian_vel(0.0)=goal_.position.x-cartpos.p.x();
+  cartesian_vel(1.0)=goal_.position.y-cartpos.p.y();
+  if(step_==0){
+    cartesian_vel(2.0)=(goal_.position.z-0.3)-cartpos.p.z();
+  }
+  else if(step_==1){
+    cartesian_vel(2.0)=(goal_.position.z)-cartpos.p.z();
+  }
+  else if(step_==3){
+    cartesian_vel(2.0)=-1.0;
+  }
+  cartesian_vel(3.0)=diff[0];
+  cartesian_vel(4.0)=diff[1];
+  cartesian_vel(5.0)=diff[2];
+  for(int i=0; i<cartesian_vel.rows(); i++){
+    if(mask_cart_[i]==0){
+      cartesian_vel(i,0)=0;
+    }
+  }
+  cartesian_vel=limitCaresianVel(cartesian_vel);
+  last_cartesian_vel_=cartesian_vel;
+  float eucl=0;
+  for(int i=0; i<cartesian_vel.rows(); i++){
+    eucl+=(cartesian_vel(i,0)*cartesian_vel(i,0));
+  }
+  eucl=std::sqrt(eucl);
+  std::cout<<"euclidean error= "<<eucl<<std::endl;
+  if(eucl<0.1){
+    step_++;
+    if(step_==2){
+      std_srvs::Empty empty_srv;
+      if(enable_keep_position_.call(empty_srv)){
+
+        merbots_grasp_srv::grasp_srv srv;
+        srv.request.command_topic="/arm5e/command_angle";
+        srv.request.joint_state_topic="/arm5e/joint_state_angle";
+        srv.request.grasped_current=1.4;
+        if(grasp_client_.call(srv)){
+          if(srv.response.success){
+            step_++;
+          }
+          else{
+            step_=0;
+          }
+        }
+        else{
+          ROS_ERROR("Failed to call service doGrasping");
+        }
+        while(!disable_keep_position_.call(empty_srv)){
+          usleep(10000);
+          ros::spinOnce();
+        }
+      }
+
+    }
+  }
+return cartesian_vel;
+}
+
+task_priority::Error_msg GoalGrasp::getMsg(Eigen::MatrixXd vels, std::vector<int> mask){
+  task_priority::Error_msg msg;
+  for(int i=0; i<last_cartesian_vel_.rows(); i++){
+    if(mask[i]==0){
+      msg.desired.push_back(0);
+      msg.achived.push_back(0);
+      msg.error.push_back(0);
+    }
+    else{
+      msg.desired.push_back(last_cartesian_vel_(i,0));
+      msg.achived.push_back(vels(i,0));
+      msg.error.push_back(last_cartesian_vel_(i,0)-vels(i,0));
+    }
+  }
+  return msg;
+
+}

@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   auv_msgs
   tf
   tf_conversions
+  merbots_grasp_srv
 )
 
 add_message_files(
@@ -28,7 +29,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS kdl_conversions roscpp std_msgs
+  CATKIN_DEPENDS kdl_conversions roscpp std_msgs merbots_grasp_srv
   DEPENDS orocos_kdl
 )
 
