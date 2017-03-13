@@ -1,0 +1,6 @@
+string command_topic
+string joint_state_topic
+float32 gripper_joint_position
+float32 max_current
+---
+bool success
