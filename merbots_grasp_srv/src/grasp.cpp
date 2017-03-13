@@ -74,24 +74,24 @@ bool Grasp::doOpening(merbots_grasp_srv::open_gripper_srv::Request &req, merbots
   }
   if(gripper_pose_opening_>req.gripper_joint_position){
     joint_msg_.velocity[4]=-0.3;
-    while(effort_<req.max_current && gripper_pose_>req.gripper_joint_position && ros::ok()){
+    while(effort_<req.max_current && gripper_pose_opening_>req.gripper_joint_position && ros::ok()){
       joint_msg_.header.stamp=ros::Time::now();
       joint_pub_opening_.publish(joint_msg_);
       ros::spinOnce();
       usleep(1000);
     }
-    if(gripper_pose_>req.gripper_joint_position)
+    if(gripper_pose_opening_>req.gripper_joint_position)
       res.success=false;
   }
   else{
     joint_msg_.velocity[4]=0.3;
-    while(effort_<req.max_current && gripper_pose_<req.gripper_joint_position && ros::ok()){
+    while(effort_<req.max_current && gripper_pose_opening_<req.gripper_joint_position && ros::ok()){
       joint_msg_.header.stamp=ros::Time::now();
       joint_pub_opening_.publish(joint_msg_);
       ros::spinOnce();
       usleep(1000);
     }
-    if(gripper_pose_<req.gripper_joint_position)
+    if(gripper_pose_opening_<req.gripper_joint_position)
       res.success=false;
   }
   res.success=true;
