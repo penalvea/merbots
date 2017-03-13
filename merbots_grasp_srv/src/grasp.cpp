@@ -76,23 +76,24 @@ bool Grasp::doOpening(merbots_grasp_srv::open_gripper_srv::Request &req, merbots
     joint_msg_.velocity[4]=-0.3;
     while(effort_<req.max_current && gripper_pose_>req.gripper_joint_position && ros::ok()){
       joint_msg_.header.stamp=ros::Time::now();
-      joint_pub_.publish(joint_msg_);
+      joint_pub_opening_.publish(joint_msg_);
       ros::spinOnce();
       usleep(1000);
     }
     if(gripper_pose_>req.gripper_joint_position)
-      return false;
+      res.success=false;
   }
   else{
     joint_msg_.velocity[4]=0.3;
     while(effort_<req.max_current && gripper_pose_<req.gripper_joint_position && ros::ok()){
       joint_msg_.header.stamp=ros::Time::now();
-      joint_pub_.publish(joint_msg_);
+      joint_pub_opening_.publish(joint_msg_);
       ros::spinOnce();
       usleep(1000);
     }
     if(gripper_pose_<req.gripper_joint_position)
-      return false;
+      res.success=false;
   }
+  res.success=true;
   return true;
 }
