@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
  add_service_files(
    FILES
    grasp_srv.srv
+   open_gripper_srv.srv
  )
 
 generate_messages(
@@ -31,8 +32,20 @@ include_directories(
 
 add_library(${PROJECT_NAME}
     src/grasp.cpp)
-add_executable(grasp_server src/grasp_server.cpp)
-target_link_libraries(grasp_server
+
+
+add_executable(grasp_srv_server src/grasp_srv_server.cpp)
+target_link_libraries(grasp_srv_server
     ${PROJECT_NAME}
   ${catkin_LIBRARIES}
+)
+
+
+add_dependencies(
+${PROJECT_NAME}
+${PROJECT_NAME}_gencpp
+)
+add_dependencies(
+grasp_srv_server
+${PROJECT_NAME}_gencpp
 )
