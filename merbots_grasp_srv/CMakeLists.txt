@@ -40,6 +40,11 @@ target_link_libraries(grasp_srv_server
   ${catkin_LIBRARIES}
 )
 
+add_executable(move_arm src/move_arm.cpp)
+target_link_libraries(move_arm
+  ${catkin_LIBRARIES}
+)
+
 
 add_dependencies(
 ${PROJECT_NAME}
