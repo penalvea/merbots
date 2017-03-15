@@ -3,6 +3,8 @@
 
 Goal::Goal(){
   initialized_=false;
+  cartesian_offset_.resize(3,1);
+  cartesian_offset_.setZero();
 }
 Goal::~Goal(){}
 
@@ -48,7 +50,12 @@ void Goal::setInitialized(bool initialized){
 bool Goal::getInitialized(){
   return initialized_;
 }
-
+void Goal::incrementOffset(Eigen::MatrixXd cartesian_offset){
+  cartesian_offset_=cartesian_offset_+cartesian_offset;
+}
+Eigen::MatrixXd Goal::getCartesianOffset(){
+  return cartesian_offset_;
+}
 
 
 
@@ -94,12 +101,12 @@ Eigen::MatrixXd GoalFixedPose::getGoal(std::vector<float> joints, std::vector<fl
   Eigen::Quaterniond quat_desired(current);
   Eigen::Vector3d diff=quaternionsSubstraction(quat_desired, quat_current);
   Eigen::MatrixXd cartesian_vel(6,1);
-  cartesian_vel(0.0)=goal_(0,0)-cartpos.p.x();
-  cartesian_vel(1.0)=goal_(1,0)-cartpos.p.y();
-  cartesian_vel(2.0)=goal_(2,0)-cartpos.p.z();
-  cartesian_vel(3.0)=diff[0];
-  cartesian_vel(4.0)=diff[1];
-  cartesian_vel(5.0)=diff[2];
+  cartesian_vel(0,0)=goal_(0,0)-cartpos.p.x() + getCartesianOffset()(0,0);
+  cartesian_vel(1,0)=goal_(1,0)-cartpos.p.y() + getCartesianOffset()(1,0);
+  cartesian_vel(2,0)=goal_(2,0)-cartpos.p.z() + getCartesianOffset()(2,0);
+  cartesian_vel(3,0)=diff[0];
+  cartesian_vel(4,0)=diff[1];
+  cartesian_vel(5,0)=diff[2];
   for(int i=0; i<cartesian_vel.rows(); i++){
     if(mask_cart_[i]==0){
       cartesian_vel(i,0)=0;
@@ -171,12 +178,12 @@ Eigen::MatrixXd GoalROSPose::getGoal(std::vector<float> joints, std::vector<floa
   Eigen::Quaterniond quat_desired(goal_.orientation.w, goal_.orientation.x, goal_.orientation.y, goal_.orientation.z);
   Eigen::Vector3d diff=quaternionsSubstraction(quat_desired, quat_current);
   Eigen::MatrixXd cartesian_vel(6,1);
-  cartesian_vel(0.0)=goal_.position.x-cartpos.p.x();
-  cartesian_vel(1.0)=goal_.position.y-cartpos.p.y();
-  cartesian_vel(2.0)=goal_.position.z-cartpos.p.z();
-  cartesian_vel(3.0)=diff[0];
-  cartesian_vel(4.0)=diff[1];
-  cartesian_vel(5.0)=diff[2];
+  cartesian_vel(0,0)=goal_.position.x-cartpos.p.x() +getCartesianOffset()(0,0);
+  cartesian_vel(1,0)=goal_.position.y-cartpos.p.y() +getCartesianOffset()(1,0);
+  cartesian_vel(2,0)=goal_.position.z-cartpos.p.z() +getCartesianOffset()(2,0);
+  cartesian_vel(3,0)=diff[0];
+  cartesian_vel(4,0)=diff[1];
+  cartesian_vel(5,0)=diff[2];
   for(int i=0; i<cartesian_vel.rows(); i++){
     if(mask_cart_[i]==0){
       cartesian_vel(i,0)=0;
@@ -304,6 +311,8 @@ GoalGrasp::GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string p
   grasp_client_= nh_.serviceClient<merbots_grasp_srv::grasp_srv>("/doGrasping");
   enable_keep_position_=nh_.serviceClient<std_srvs::Empty>("/cola2_control/enable_keep_position_4dof");
   disable_keep_position_=nh_.serviceClient<std_srvs::Empty>("/cola2_control/disable_keep_position");
+  pose_received_=false;
+  pose_reached_=0;
 
 
   setMaxCartesianVel(max_cartesian_vel);
@@ -313,10 +322,13 @@ GoalGrasp::GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string p
 GoalGrasp::~GoalGrasp(){}
 
 void GoalGrasp::poseCallback(const geometry_msgs::Pose::ConstPtr &msg){
-  std::cout<<"pose received"<<std::endl;
-  goal_.orientation=msg->orientation;
-  goal_.position=msg->position;
-  setInitialized(true);
+  if(!pose_received_){
+    std::cout<<"pose received"<<std::endl;
+    goal_.orientation=msg->orientation;
+    goal_.position=msg->position;
+    setInitialized(true);
+    pose_received_=true;
+  }
 }
 
 Eigen::MatrixXd GoalGrasp::getGoal(std::vector<float> joints, std::vector<float> odom){
@@ -336,26 +348,38 @@ Eigen::MatrixXd GoalGrasp::getGoal(std::vector<float> joints, std::vector<float>
   Eigen::Quaterniond quat_desired(goal_.orientation.w, goal_.orientation.x, goal_.orientation.y, goal_.orientation.z);
   Eigen::Vector3d diff=quaternionsSubstraction(quat_desired, quat_current);
   Eigen::MatrixXd cartesian_vel(6,1);
-  cartesian_vel(0.0)=goal_.position.x-cartpos.p.x();
-  cartesian_vel(1.0)=goal_.position.y-cartpos.p.y();
+  cartesian_vel(0,0)=goal_.position.x-cartpos.p.x()  +getCartesianOffset()(0,0);
+  cartesian_vel(1,0)=goal_.position.y-cartpos.p.y()  +getCartesianOffset()(1,0);
   if(step_==0){
-    cartesian_vel(2.0)=(goal_.position.z-0.3)-cartpos.p.z();
+    cartesian_vel(2,0)=(goal_.position.z-0.2)-cartpos.p.z()  +getCartesianOffset()(2,0);
   }
   else if(step_==1){
-    cartesian_vel(2.0)=(goal_.position.z)-cartpos.p.z();
+    cartesian_vel(2,0)=(goal_.position.z)-cartpos.p.z() +getCartesianOffset()(2,0);
   }
   else if(step_==3){
-    cartesian_vel(2.0)=-1.0;
+    cartesian_vel(2,0)=-1.0;
   }
-  cartesian_vel(3.0)=diff[0];
-  cartesian_vel(4.0)=diff[1];
-  cartesian_vel(5.0)=diff[2];
+  cartesian_vel(3,0)=diff[0];
+  cartesian_vel(4,0)=diff[1];
+  cartesian_vel(5,0)=diff[2];
   for(int i=0; i<cartesian_vel.rows(); i++){
     if(mask_cart_[i]==0){
       cartesian_vel(i,0)=0;
     }
   }
+  std::cout<<"desired   ------    current"<<std::endl;
+  std::cout<<goal_.position.x<<"   ---  "<<cartpos.p.x()<<std::endl;
+  std::cout<<goal_.position.y<<"   ---  "<<cartpos.p.y()<<std::endl;
+  std::cout<<goal_.position.z<<"   ---  "<<cartpos.p.z()<<std::endl;
+  std::cout<<quat_desired.x()<<"   ---  "<<quat_current.x()<<std::endl;
+  std::cout<<quat_desired.y()<<"   ---  "<<quat_current.y()<<std::endl;
+  std::cout<<quat_desired.z()<<"   ---  "<<quat_current.z()<<std::endl;
+  std::cout<<quat_desired.w()<<"   ---  "<<quat_current.w()<<std::endl;
+
   cartesian_vel=limitCaresianVel(cartesian_vel);
+  std::cout<<"Step="<<step_<<std::endl;
+  std::cout<<"Cartesian_vel"<<std::endl;
+  std::cout<<cartesian_vel<<std::endl;
   last_cartesian_vel_=cartesian_vel;
   float eucl=0;
   for(int i=0; i<cartesian_vel.rows(); i++){
@@ -363,34 +387,41 @@ Eigen::MatrixXd GoalGrasp::getGoal(std::vector<float> joints, std::vector<float>
   }
   eucl=std::sqrt(eucl);
   std::cout<<"euclidean error= "<<eucl<<std::endl;
-  if(eucl<0.1){
-    step_++;
-    if(step_==2){
-      std_srvs::Empty empty_srv;
-      if(enable_keep_position_.call(empty_srv)){
+  if(eucl<0.03){
+    pose_reached_++;
+    if(pose_reached_>=5){
+      step_++;
+      pose_reached_=0;
+      if(step_==2){
+        std_srvs::Empty empty_srv;
+        if(enable_keep_position_.call(empty_srv)){
 
-        merbots_grasp_srv::grasp_srv srv;
-        srv.request.command_topic="/arm5e/command_angle";
-        srv.request.joint_state_topic="/arm5e/joint_state_angle";
-        srv.request.grasped_current=1.4;
-        if(grasp_client_.call(srv)){
-          if(srv.response.success){
-            step_++;
+          merbots_grasp_srv::grasp_srv srv;
+          srv.request.command_topic="/arm5e/command_angle";
+          srv.request.joint_state_topic="/arm5e/joint_state_angle";
+          srv.request.grasped_current=1.4;
+          if(grasp_client_.call(srv)){
+            if(srv.response.success){
+              step_++;
+            }
+            else{
+              step_=0;
+            }
           }
           else{
-            step_=0;
+            ROS_ERROR("Failed to call service doGrasping");
+          }
+          while(!disable_keep_position_.call(empty_srv)){
+            usleep(10000);
+            ros::spinOnce();
           }
         }
-        else{
-          ROS_ERROR("Failed to call service doGrasping");
-        }
-        while(!disable_keep_position_.call(empty_srv)){
-          usleep(10000);
-          ros::spinOnce();
-        }
-      }
 
+      }
     }
+  }
+  else{
+    pose_reached_=0;
   }
 return cartesian_vel;
 }

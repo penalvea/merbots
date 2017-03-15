@@ -15,6 +15,7 @@
 class Goal{
   bool initialized_;
   float max_cartesian_vel_;
+  Eigen::MatrixXd cartesian_offset_;
 public:
   Goal();
   virtual ~Goal();
@@ -25,6 +26,8 @@ public:
   bool getInitialized();
   void setMaxCartesianVel(float max_cartesian_vel);
   Eigen::MatrixXd limitCaresianVel(Eigen::MatrixXd vels);
+  void incrementOffset(Eigen::MatrixXd cartesian_offset);
+  Eigen::MatrixXd getCartesianOffset();
 };
 typedef boost::shared_ptr<Goal> GoalPtr;
 
@@ -99,6 +102,8 @@ class GoalGrasp: public Goal{
   Eigen::MatrixXd last_cartesian_vel_;
   int step_;
   ros::ServiceClient grasp_client_, enable_keep_position_, disable_keep_position_;
+  bool pose_received_;
+  int pose_reached_;
 
   void poseCallback(const geometry_msgs::Pose::ConstPtr& msg);
 public:
@@ -108,5 +113,10 @@ public:
   task_priority::Error_msg getMsg(Eigen::MatrixXd vels, std::vector<int> mask);
 };
 typedef boost::shared_ptr<GoalGrasp> GoalGraspPtr;
+
+
+class ForceSensorGoal: public Goal{
+
+};
 
 #endif // GOAL_HPP

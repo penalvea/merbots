@@ -2,5 +2,5 @@
         <rosparam command="load" file="$(find task_priority)/launch/multi_task_priority.yaml" />
 
         <node name="multi_task_priority" pkg="task_priority" type="multi_task_priority" output="screen" respawn="false"/>
-<node name="grasp_server" pkg="merbots_grasp_srv" type="grasp_server" output="screen" respawn="false"/>
+<node name="grasp_srv_server" pkg="merbots_grasp_srv" type="grasp_srv_server" output="screen" respawn="false"/>
 </launch>

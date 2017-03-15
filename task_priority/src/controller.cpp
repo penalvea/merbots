@@ -3,7 +3,7 @@
 
 
 
-Controller::Controller(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations){
+Controller::Controller(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, bool simulation){
 multitasks_=multitasks;
 n_joints_=n_joints;
 max_joint_limit_=max_joint_limit;
@@ -21,27 +21,58 @@ goal_init_=false;
 current_joints_.resize(n_joints);
 chains_=chains;
 chain_joint_relations_=chain_joint_relations;
+force_sensor_=false;
+simulation_=simulation;
 
 
 
 
 joints_sub_=nh_.subscribe<sensor_msgs::JointState>(arm_joint_state_topic, 1, &Controller::jointsCallback, this);
 joints_pub_=nh_.advertise<sensor_msgs::JointState>(arm_joint_command_topic,1);
-//vehicle_pub_=nh_.advertise<nav_msgs::Odometry>(vehicle_command_topic, 1);
-vehicle_pub_=nh_.advertise<auv_msgs::BodyVelocityReq>(vehicle_command_topic, 1);
 
+if(simulation)
+  vehicle_pub_=nh_.advertise<nav_msgs::Odometry>(vehicle_command_topic, 1);
+else
+  vehicle_pub_=nh_.advertise<auv_msgs::BodyVelocityReq>(vehicle_command_topic, 1);
 status_pub_=nh_.advertise<task_priority::TaskPriority_msg>("/task_priority/status", 1);
 }
 
 Controller::~Controller(){}
 
-void Controller::jointsCallback(const sensor_msgs::JointStateConstPtr &msg){
-  for(int i=0; i<5; i++){
-    current_joints_[i]=0.0;
+void Controller::activateForceSensor(std::string topic, std::string service_zero, float threshold_value){
+  force_sensor_pub_=nh_.subscribe<geometry_msgs::Wrench>(topic, 1, &Controller::forceSensorCallback, this);
+  setZero_srv_=nh_.serviceClient<std_srvs::Empty>(service_zero);
+  std_srvs::Empty empty_srv;
+  while(!setZero_srv_.call(empty_srv)){
+    ros::spinOnce();
+    usleep(1000);
   }
+  sensor_threshold_value_=threshold_value;
+  force_sensor_=true;
+  ROS_INFO("Force sensor initialized");
+}
 
-  for(int i=5; i<9; i++){
-    current_joints_[i]=msg->position[i-5];
+void Controller::forceSensorCallback(const geometry_msgs::WrenchConstPtr &msg){
+
+}
+
+void Controller::jointsCallback(const sensor_msgs::JointStateConstPtr &msg){
+  if(simulation_){
+    for(int i=0; i<4; i++){
+      current_joints_[i]=0.0;
+    }
+    for(int i=4; i<8; i++){
+      current_joints_[i]=msg->position[i-4];
+    }
+  }
+  else{
+    for(int i=0; i<5; i++){
+      current_joints_[i]=0.0;
+    }
+
+    for(int i=5; i<9; i++){
+      current_joints_[i]=msg->position[i-5];
+    }
   }
   joints_init_=true;
 }
@@ -124,6 +155,7 @@ void Controller::goToGoal(){
       for(int i=0; i<n_joints_; i++){
         max_positive_joint_velocities.push_back(calculateMaxPositiveVel(current_joints_[i], max_joint_limit_[i], acceleration_, sampling_duration_));
         max_negative_joint_velocities.push_back(calculateMaxNegativeVel(current_joints_[i], min_joint_limit_[i], acceleration_, sampling_duration_));
+        //std::cout<<max_positive_joint_velocities[i]<<"-----    "<<max_negative_joint_velocities[i]<<std::endl;
       }
       std::vector<std::vector<float> > max_negative_cartesian_velocities, max_positive_cartesian_velocities;
       std::vector<std::vector<std::vector<float> > > max_cartesian_vels=calculateMaxCartesianVels(current_joints_, odom);
@@ -132,9 +164,12 @@ void Controller::goToGoal(){
       Eigen::MatrixXd T_k_complete;
       Eigen::MatrixXd vels(n_joints_,1);
       vels.setZero();
+
       for(int i=multitasks_.size()-1; i>=0; i--){
         multitasks_[i]->setCurrentJoints(current_joints_);
         multitasks_[i]->setOdom(odom);
+
+
         multitasks_[i]->setMaxPositiveJointVelocity(max_positive_joint_velocities);
         multitasks_[i]->setMaxNegativeJointVelocity(max_negative_joint_velocities);
         multitasks_[i]->setMaxPositiveCartesianVelocity(max_positive_cartesian_velocities);
@@ -142,11 +177,13 @@ void Controller::goToGoal(){
         vels=multitasks_[i]->calculateMultiTaskVel(vels, T_k_complete);
         T_k_complete=multitasks_[i]->getT_k_complete();
       }
+
       vels=limitVels(vels);
       //std::cout<<"vels to publish "<<std::endl;
       //std::cout<<vels<<std::endl;
       //std::cout<<"----------------------------"<<std::endl;
       publishVels(vels);
+      //std::cout<<"despues publish"<<std::endl;
 
     }
     catch(tf::TransformException ex){
@@ -224,14 +261,23 @@ void Controller::publishVels(Eigen::MatrixXd vels){
   joint_msg.name.push_back("JawRotate");
   joint_msg.name.push_back("JawOpening");
 
-  for(int i=5; i<9; i++){
-    joint_msg.velocity.push_back(5*vels(i,0));
+  if(simulation_){
+    for(int i=4; i<8; i++){
+      joint_msg.velocity.push_back(vels(i,0));
+    }
+  }
+  else{
+    for(int i=5; i<9; i++){
+      joint_msg.velocity.push_back(3*vels(i,0));
+    }
   }
   joint_msg.velocity.push_back(0);
   joint_msg.header.stamp=ros::Time::now();
 
-  //vehicle_pub_.publish(odom_msg);
-  vehicle_pub_.publish(vehicle_msg);
+  if(simulation_)
+    vehicle_pub_.publish(odom_msg);
+  else
+    vehicle_pub_.publish(vehicle_msg);
   joints_pub_.publish(joint_msg);
   publishStatus(vels);
   ros::spinOnce();

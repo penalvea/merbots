@@ -19,6 +19,10 @@ int main(int argc, char **argv){
   nh.getParam("sampling_duration", sampling_duration);
   ROS_INFO("Sampling duration: %f", sampling_duration);
 
+  bool simulation;
+  nh.getParam("simulation", simulation);
+  ROS_INFO("Simulation: %d", simulation);
+
   int n_joints;
   nh.getParam("n_joints", n_joints);
 
@@ -282,7 +286,7 @@ int main(int argc, char **argv){
   nh.getParam("vehicle_command_topic", vehicle_command_topic);
   ROS_INFO("Command Vehicle Topic: %s", vehicle_command_topic.c_str());
 
-  ControllerPtr controller(new Controller(multitasks, n_joints, max_joint_limit, min_joint_limit, max_cartesian_limits, min_cartesian_limits, acceleration, max_joint_vel, sampling_duration, nh, arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic, chains, chain_joint_relations));
+  ControllerPtr controller(new Controller(multitasks, n_joints, max_joint_limit, min_joint_limit, max_cartesian_limits, min_cartesian_limits, acceleration, max_joint_vel, sampling_duration, nh, arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic, chains, chain_joint_relations, simulation));
   controller->goToGoal();
 
 
