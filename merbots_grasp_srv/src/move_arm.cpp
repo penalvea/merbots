@@ -23,15 +23,15 @@ int main(int argc, char **argv) {
 
     sensor_msgs::JointState js;
           js.name.push_back(std::string("Slew"));
-          js.velocity.push_back(qdot[0]);
+          js.position.push_back(qdot[0]);
           js.name.push_back(std::string("Shoulder"));
-          js.velocity.push_back(qdot[1]);
+          js.position.push_back(qdot[1]);
           js.name.push_back(std::string("Elbow"));
-          js.velocity.push_back(qdot[2]);
+          js.position.push_back(qdot[2]);
           js.name.push_back(std::string("JawRotate"));
-          js.velocity.push_back(qdot[3]);
+          js.position.push_back(qdot[3]);
           js.name.push_back(std::string("JawOpening"));
-          js.velocity.push_back(qdot[4]);
+          js.position.push_back(qdot[4]);
 
           velocity_pub.publish(js);
 
