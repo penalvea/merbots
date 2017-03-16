@@ -9,7 +9,8 @@
 
 class PIController{
   std::vector<float> p_values_, i_values_;
-  std::vector<float> i_accum_;
+  std::vector<float> error_accum_;
+   std::vector<float> error_;
   std::vector<float> last_vels_, last_joints_, last_odom_;
   Eigen::Transform<float, 3, Eigen::Affine> wMlv_;
   ros::Time last_time_;
