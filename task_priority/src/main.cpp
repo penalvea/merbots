@@ -39,6 +39,18 @@ int main(int argc, char **argv){
     return -1;
   }
 
+  std::vector<float> p_values, i_values;
+  nh.getParam("PID_p_values", p_values);
+  nh.getParam("PID_i_values", i_values);
+  if(p_values.size()!=n_joints){
+    ROS_ERROR("PID: %d p values needes", n_joints);
+    return -1;
+  }
+  if(i_values.size()!=n_joints){
+    ROS_ERROR("PID: %d i values needes", n_joints);
+    return -1;
+  }
+
 
   ////// Chains
   ///
@@ -193,7 +205,7 @@ int main(int argc, char **argv){
       ROS_INFO("        Cartesian: %d", cartesian);
       std::vector<int> task_mask_cartesian, task_mask_joint;
       nh.getParam(task_names[j]+"/mask_cartesian", task_mask_cartesian);
-      std::string msg;
+      std::string msg="";
       for(int k=0; k<task_mask_cartesian.size(); k++){
         msg+=boost::lexical_cast<std::string>(task_mask_cartesian[k])+" ";
       }
@@ -286,7 +298,7 @@ int main(int argc, char **argv){
   nh.getParam("vehicle_command_topic", vehicle_command_topic);
   ROS_INFO("Command Vehicle Topic: %s", vehicle_command_topic.c_str());
 
-  ControllerPtr controller(new Controller(multitasks, n_joints, max_joint_limit, min_joint_limit, max_cartesian_limits, min_cartesian_limits, acceleration, max_joint_vel, sampling_duration, nh, arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic, chains, chain_joint_relations, simulation));
+  ControllerPtr controller(new Controller(multitasks, n_joints, max_joint_limit, min_joint_limit, max_cartesian_limits, min_cartesian_limits, acceleration, max_joint_vel, sampling_duration, nh, arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic, chains, chain_joint_relations, simulation, p_values, i_values));
   controller->goToGoal();
 
 

@@ -9,6 +9,7 @@
 #include <auv_msgs/BodyVelocityReq.h>
 #include <geometry_msgs/Wrench.h>
 #include <std_srvs/Empty.h>
+#include "task_priority/pi_controller.hpp"
 
 
 class Controller{
@@ -22,21 +23,19 @@ class Controller{
   float sampling_duration_;
   ros::NodeHandle nh_;
   ros::Publisher joints_pub_, vehicle_pub_, status_pub_;
-  ros::Subscriber joints_sub_, force_sensor_pub_;
+  ros::Subscriber joints_sub_;
   tf::TransformListener listener;
-  ros::ServiceClient setZero_srv_;
   std::vector<float> current_joints_;
   bool joints_init_, goal_init_;
   std::string world_tf_, vehicle_tf_;
   std::vector<KDL::Chain> chains_;
   std::vector<std::vector<int> > chain_joint_relations_;
-  bool force_sensor_;
   float sensor_threshold_value_;
   bool simulation_;
+  PIControllerPtr pi_controller_;
 
 
   void jointsCallback(const sensor_msgs::JointStateConstPtr  &msg);
-  void forceSensorCallback(const geometry_msgs::WrenchConstPtr &msg);
   void publishVels(Eigen::MatrixXd vels);
   Eigen::MatrixXd limitVels(Eigen::MatrixXd vels);
   float calculateMaxNegativeVel(float current_joint, float min_joint_value, float acceleration, float sampling_duration);
@@ -47,10 +46,9 @@ class Controller{
   std::vector<std::vector<std::vector<float> > > calculateMaxCartesianVels(std::vector<float> joints, std::vector<float> odom);
   void publishStatus(Eigen::MatrixXd vels);
 public:
-  Controller(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, bool simulation);
+  Controller(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, bool simulation, std::vector<float> p_values, std::vector<float> i_values);
   ~Controller();
   void goToGoal();
-  void activateForceSensor(std::string topic, std::string service_zero, float threshold_value);
 
 
 };

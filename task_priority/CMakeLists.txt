@@ -50,7 +50,8 @@ add_library(${PROJECT_NAME}
   src/jacobian.cpp
   src/task.cpp
   src/goal.cpp
-  src/controller.cpp)
+  src/controller.cpp
+  src/pi_controller.cpp)
 #target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES})
 #add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 

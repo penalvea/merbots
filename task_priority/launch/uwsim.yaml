@@ -1,15 +1,18 @@
 acceleration: 2
-max_joint_vel: 0.1
-max_cartesian_vel: 0.2
+max_joint_vel: 2.1
+max_cartesian_vel: 1.2
 sampling_duration: 0.1
 
 simulation: true
 
 n_joints: 8
 
-max_joint_limit: [100,   100,  100,  100,  0.4, 1.37, 1.4529, 6.14]
-min_joint_limit: [-100, -100, -100, -100, -1.3, 0.1,  0.1, -6.14]
+max_joint_limit: [100,   100,  100,  100,  0.4, 1.37, 1.4529, 3.14]
+min_joint_limit: [-100, -100, -100, -100, -1.3, 0.1,  0.1, -3.14]
 
+
+PID_p_values: [0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8]
+PID_i_values: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
 arm_joint_state_topic: /uwsim/joint_state
 arm_joint_command_topic: /uwsim/joint_state_command
@@ -49,7 +52,7 @@ auv/min_cartesian_limit: [-20,-20,-20, -6.28, -6.28, -6.28]
 
 
 
-multitask_priority: [pose_multi]
+multitask_priority: [fixed_multi]
 
 
 
@@ -76,7 +79,7 @@ fixed_task/cartesian: True
 fixed_task/mask_cartesian: [1, 1, 1, 1, 1, 1]
 fixed_task/mask_joint: [1,1, 1,1,1,1,1,1]
 fixed_task/goal_type: Fixed
-fixed_task/goal/desired_pose: [2.0, 1.0, 3.0, 0.0, 0.0, 0.0]
+fixed_task/goal/desired_pose: [2.0, 2.0, 2.0, 0.14, 0.14, 0.0]
 fixed_task/frame_inertial: True
 
 

@@ -3,7 +3,7 @@
 
 
 
-Controller::Controller(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, bool simulation){
+Controller::Controller(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, bool simulation, std::vector<float> p_values, std::vector<float> i_values){
 multitasks_=multitasks;
 n_joints_=n_joints;
 max_joint_limit_=max_joint_limit;
@@ -21,8 +21,16 @@ goal_init_=false;
 current_joints_.resize(n_joints);
 chains_=chains;
 chain_joint_relations_=chain_joint_relations;
-force_sensor_=false;
 simulation_=simulation;
+
+
+
+///////////////////PI Controller/////////////////////
+
+pi_controller_.reset(new PIController(p_values, i_values));
+
+
+//////////////////////////////////77
 
 
 
@@ -39,22 +47,8 @@ status_pub_=nh_.advertise<task_priority::TaskPriority_msg>("/task_priority/statu
 
 Controller::~Controller(){}
 
-void Controller::activateForceSensor(std::string topic, std::string service_zero, float threshold_value){
-  force_sensor_pub_=nh_.subscribe<geometry_msgs::Wrench>(topic, 1, &Controller::forceSensorCallback, this);
-  setZero_srv_=nh_.serviceClient<std_srvs::Empty>(service_zero);
-  std_srvs::Empty empty_srv;
-  while(!setZero_srv_.call(empty_srv)){
-    ros::spinOnce();
-    usleep(1000);
-  }
-  sensor_threshold_value_=threshold_value;
-  force_sensor_=true;
-  ROS_INFO("Force sensor initialized");
-}
 
-void Controller::forceSensorCallback(const geometry_msgs::WrenchConstPtr &msg){
 
-}
 
 void Controller::jointsCallback(const sensor_msgs::JointStateConstPtr &msg){
   if(simulation_){
@@ -149,6 +143,12 @@ void Controller::goToGoal(){
       odom[4]=odom_euler[1];
       odom[5]=odom_euler[2];
 
+      ////////////////////////////PI Controller//////////////7777777
+
+
+      pi_controller_->updateController(odom, current_joints_, ros::Time::now());
+
+      //////////////////////////////////////
 
 
       std::vector<float> max_positive_joint_velocities, max_negative_joint_velocities;
@@ -182,8 +182,28 @@ void Controller::goToGoal(){
       //std::cout<<"vels to publish "<<std::endl;
       //std::cout<<vels<<std::endl;
       //std::cout<<"----------------------------"<<std::endl;
+
+
+
+
+      ////////////////////////////PI Controller//////////////7777777
+     // std::cout<<"old vel"<<std::endl;
+      //std::cout<<vels<<std::endl;
+
+      vels=pi_controller_->getVels(vels, ros::Time::now());
+      //std::cout<<"---------"<<std::endl;
+      //std::cout<<vels<<std::endl;
+
+      //////////////////////////////////////
+
+
       publishVels(vels);
       //std::cout<<"despues publish"<<std::endl;
+
+
+
+
+
 
     }
     catch(tf::TransformException ex){
