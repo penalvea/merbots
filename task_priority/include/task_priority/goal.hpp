@@ -9,7 +9,10 @@
 #include <geometry_msgs/Twist.h>
 #include <task_priority/Error_msg.h>
 #include <merbots_grasp_srv/grasp_srv.h>
+#include <merbots_grasp_srv/grasp_station_srv.h>
 #include <std_srvs/Empty.h>
+#include <geometry_msgs/Wrench.h>
+
 
 
 class Goal{
@@ -104,10 +107,19 @@ class GoalGrasp: public Goal{
   ros::ServiceClient grasp_client_, enable_keep_position_, disable_keep_position_;
   bool pose_received_;
   int pose_reached_;
+  std::string joint_state_topic_, command_joint_topic_;
+  ros::Subscriber force_sub_;
+  float max_force_;
+  float current_force_;
+  bool force_detected_, last_detection_;
+  int force_direction_;
+  ros::ServiceClient force_set_zero_;
+
 
   void poseCallback(const geometry_msgs::Pose::ConstPtr& msg);
+  void forceCallback(const geometry_msgs::Wrench::ConstPtr& msg);
 public:
-  GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel);
+  GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel, std::string joint_state_topic, std::string command_joint_topic, bool force_sensor, std::string force_sensor_topic, float max_force, std::string force_set_zero);
   ~GoalGrasp();
   Eigen::MatrixXd getGoal(std::vector<float> joints, std::vector<float> odom);
   task_priority::Error_msg getMsg(Eigen::MatrixXd vels, std::vector<int> mask);
@@ -115,8 +127,6 @@ public:
 typedef boost::shared_ptr<GoalGrasp> GoalGraspPtr;
 
 
-class ForceSensorGoal: public Goal{
 
-};
 
 #endif // GOAL_HPP

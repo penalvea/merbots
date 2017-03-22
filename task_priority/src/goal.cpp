@@ -293,7 +293,7 @@ task_priority::Error_msg GoalJointsPosition::getMsg(Eigen::MatrixXd vels, std::v
 
 
 
-GoalGrasp::GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel):Goal(){
+GoalGrasp::GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel, std::string joint_state_topic, std::string command_joint_topic, bool force_sensor, std::string force_sensor_topic, float max_force, std::string force_set_zero):Goal(){
   KDL::Chain chain_odom;
   chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
   chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransY)));
@@ -308,18 +308,59 @@ GoalGrasp::GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string p
   joints_relation_=joints_relation;
   nh_=nh;
   step_=0;
-  grasp_client_= nh_.serviceClient<merbots_grasp_srv::grasp_srv>("/doGrasping");
+  /*grasp_client_= nh_.serviceClient<merbots_grasp_srv::grasp_srv>("/doGrasping");
   enable_keep_position_=nh_.serviceClient<std_srvs::Empty>("/cola2_control/enable_keep_position_4dof");
-  disable_keep_position_=nh_.serviceClient<std_srvs::Empty>("/cola2_control/disable_keep_position");
+  disable_keep_position_=nh_.serviceClient<std_srvs::Empty>("/cola2_control/disable_keep_position");*/
+
+  grasp_client_=nh_.serviceClient<merbots_grasp_srv::grasp_station_srv>("/doGrasping_Station");
+
   pose_received_=false;
   pose_reached_=0;
+
+  joint_state_topic_=joint_state_topic;
+  command_joint_topic_=command_joint_topic;
+  force_detected_=false;
+  force_direction_=0;
 
 
   setMaxCartesianVel(max_cartesian_vel);
 
   pose_sub_=nh_.subscribe<geometry_msgs::Pose>(pose_topic, 1, &GoalGrasp::poseCallback, this);
+
+  if(force_sensor){
+    force_sub_=nh_.subscribe<geometry_msgs::Wrench>(force_sensor_topic, 1, &GoalGrasp::forceCallback, this);
+    max_force_=max_force;
+    current_force_=0;
+    force_set_zero_=nh_.serviceClient<std_srvs::Empty>(force_set_zero);
+    last_detection_=false;
+    force_detected_=false;
+  }
+
 }
 GoalGrasp::~GoalGrasp(){}
+
+void GoalGrasp::forceCallback(const geometry_msgs::Wrench::ConstPtr &msg){
+  current_force_=msg->torque.y;
+  if(current_force_>max_force_){
+    force_detected_=true;
+    if(force_direction_==0){
+      force_direction_=1;
+    }
+    ROS_INFO("Force detected: %f", current_force_);
+  }
+  else if(current_force_<-max_force_){
+    force_detected_=true;
+    if(force_direction_==0){
+      force_direction_=-1;
+    }
+    ROS_INFO("Force detected: %f", current_force_);
+  }
+  else{
+    force_detected_=false;
+    last_detection_=false;
+  }
+
+}
 
 void GoalGrasp::poseCallback(const geometry_msgs::Pose::ConstPtr &msg){
   if(!pose_received_){
@@ -347,17 +388,56 @@ Eigen::MatrixXd GoalGrasp::getGoal(std::vector<float> joints, std::vector<float>
   Eigen::Quaterniond quat_current(w,x,y,z);
   Eigen::Quaterniond quat_desired(goal_.orientation.w, goal_.orientation.x, goal_.orientation.y, goal_.orientation.z);
   Eigen::Vector3d diff=quaternionsSubstraction(quat_desired, quat_current);
+
+  ///// Force Sensor handle
+  if(force_detected_ && ! last_detection_){
+    last_detection_=true;
+    Eigen::MatrixXd increment(3,1);
+    increment.setZero();
+    if(((goal_.position.z)-cartpos.p.z() +getCartesianOffset()(2,0))>0.05){
+
+      if(current_force_>0){
+        Eigen::Transform<double, 3, Eigen::Affine> wMdir=Eigen::Translation3d(cartpos.p.x(), cartpos.p.y(),cartpos.p.z())*quat_current*Eigen::Translation3d(0.01, 0.0, 0.0);
+        increment(0,0)=wMdir(0,3)-cartpos.p.x();
+        increment(1,0)=wMdir(1,3)-cartpos.p.y();
+        incrementOffset(increment);
+      }
+      else{
+        Eigen::Transform<double, 3, Eigen::Affine> wMdir=Eigen::Translation3d(cartpos.p.x(), cartpos.p.y(),cartpos.p.z())*quat_current*Eigen::Translation3d(-0.01, 0.0, 0.0);
+        increment(0,0)=wMdir(0,3)-cartpos.p.x();
+        increment(1,0)=wMdir(1,3)-cartpos.p.y();
+        incrementOffset(increment);
+      }
+    }
+    else{
+      Eigen::Transform<double, 3, Eigen::Affine> wMdir=Eigen::Translation3d(cartpos.p.x(), cartpos.p.y(),cartpos.p.z())*quat_current*Eigen::Translation3d(0.0, 0.0, -0.01);
+      increment(0,0)=wMdir(0,3)-cartpos.p.x();
+      increment(1,0)=wMdir(1,3)-cartpos.p.y();
+      incrementOffset(increment);
+    }
+    last_detection_=true;
+  }
+
+  /////
+
+
   Eigen::MatrixXd cartesian_vel(6,1);
   cartesian_vel(0,0)=goal_.position.x-cartpos.p.x()  +getCartesianOffset()(0,0);
   cartesian_vel(1,0)=goal_.position.y-cartpos.p.y()  +getCartesianOffset()(1,0);
-  if(step_==0){
-    cartesian_vel(2,0)=(goal_.position.z-0.2)-cartpos.p.z()  +getCartesianOffset()(2,0);
-  }
-  else if(step_==1){
-    cartesian_vel(2,0)=(goal_.position.z)-cartpos.p.z() +getCartesianOffset()(2,0);
-  }
-  else if(step_==3){
+  if(force_detected_){
     cartesian_vel(2,0)=-1.0;
+    step_=0;
+  }
+  else{
+    if(step_==0){
+      cartesian_vel(2,0)=(goal_.position.z-0.2)-cartpos.p.z()  +getCartesianOffset()(2,0);
+    }
+    else if(step_==1){
+      cartesian_vel(2,0)=(goal_.position.z)-cartpos.p.z() +getCartesianOffset()(2,0);
+    }
+    else if(step_==3){
+      cartesian_vel(2,0)=-1.0;
+    }
   }
   cartesian_vel(3,0)=diff[0];
   cartesian_vel(4,0)=diff[1];
@@ -393,7 +473,7 @@ Eigen::MatrixXd GoalGrasp::getGoal(std::vector<float> joints, std::vector<float>
       step_++;
       pose_reached_=0;
       if(step_==2){
-        std_srvs::Empty empty_srv;
+        /*std_srvs::Empty empty_srv;
         if(enable_keep_position_.call(empty_srv)){
 
           merbots_grasp_srv::grasp_srv srv;
@@ -415,8 +495,30 @@ Eigen::MatrixXd GoalGrasp::getGoal(std::vector<float> joints, std::vector<float>
             usleep(10000);
             ros::spinOnce();
           }
-        }
+        }*/
 
+        merbots_grasp_srv::grasp_station_srv srv;
+        srv.request.command_topic=command_joint_topic_;
+        srv.request.joint_state_topic=joint_state_topic_;
+        srv.request.grasped_current=1.4;
+        srv.request.station_topic="/cola2_control/world_waypoint_req";
+        srv.request.north=odom[0];
+        srv.request.east=odom[1];
+        srv.request.depth=odom[2];
+        srv.request.roll=odom[3];
+        srv.request.pitch=odom[4];
+        srv.request.yaw=odom[5];
+        if(grasp_client_.call(srv)){
+          if(srv.response.success){
+            step_++;
+          }
+          else{
+            step_=0;
+          }
+        }
+        else{
+          ROS_ERROR("Failed to call service doGrasping_Station");
+        }
       }
     }
   }

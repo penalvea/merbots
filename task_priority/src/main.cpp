@@ -52,6 +52,19 @@ int main(int argc, char **argv){
   }
 
 
+  std::string arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic;
+  nh.getParam("arm_joint_state_topic", arm_joint_state_topic);
+  ROS_INFO("Joint State Topic: %s", arm_joint_state_topic.c_str());
+  nh.getParam("arm_joint_command_topic", arm_joint_command_topic);
+  ROS_INFO("Command Joint Topic: %s", arm_joint_state_topic.c_str());
+  nh.getParam("vehicle_tf", vehicle_tf);
+  ROS_INFO("Vehicle tf: %s", vehicle_tf.c_str());
+  nh.getParam("world_tf", world_tf);
+  ROS_INFO("World tf: %s", world_tf.c_str());
+  nh.getParam("vehicle_command_topic", vehicle_command_topic);
+  ROS_INFO("Command Vehicle Topic: %s", vehicle_command_topic.c_str());
+
+
   ////// Chains
   ///
   ///
@@ -268,7 +281,25 @@ int main(int argc, char **argv){
         std::string goal_topic;
         nh.getParam(task_names[j]+"/goal/topic", goal_topic);
         ROS_INFO("            ROS Node: %s", goal_topic.c_str());
-        GoalGraspPtr goal_ros_pose(new GoalGrasp(chains[chain_id[task_chain]], task_mask_cartesian, goal_topic, nh, chain_joint_relations[chain_id[task_chain]], max_cartesian_vel));
+        bool force_sensor;
+        float max_force;
+        std::string force_sensor_topic, set_zero_srv;
+        nh.getParam(task_names[j]+"/goal/force_sensor", force_sensor);
+        ROS_INFO("            Force sensor: %d", force_sensor);
+        if(force_sensor){
+          nh.getParam(task_names[j]+"/goal/force_sensor/topic", force_sensor_topic);
+          ROS_INFO("                Topic: %s", force_sensor_topic.c_str());
+          nh.getParam(task_names[j]+"/goal/force_sensor/max_force", max_force);
+          ROS_INFO("                Max force: %f", max_force);
+          nh.getParam(task_names[j]+"/goal/force_sensor/set_zero_srv", set_zero_srv);
+          ROS_INFO("                Service Set Zero: %s", set_zero_srv.c_str());
+        }
+        else{
+          force_sensor_topic="";
+          max_force=0;
+          set_zero_srv="";
+        }
+        GoalGraspPtr goal_ros_pose(new GoalGrasp(chains[chain_id[task_chain]], task_mask_cartesian, goal_topic, nh, chain_joint_relations[chain_id[task_chain]], max_cartesian_vel, arm_joint_state_topic, arm_joint_command_topic, force_sensor, force_sensor_topic, max_force, set_zero_srv));
         goal=goal_ros_pose;
       }
       else{
@@ -286,17 +317,7 @@ int main(int argc, char **argv){
   }
 
 
-  std::string arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic;
-  nh.getParam("arm_joint_state_topic", arm_joint_state_topic);
-  ROS_INFO("Joint State Topic: %s", arm_joint_state_topic.c_str());
-  nh.getParam("arm_joint_command_topic", arm_joint_command_topic);
-  ROS_INFO("Command Joint Topic: %s", arm_joint_state_topic.c_str());
-  nh.getParam("vehicle_tf", vehicle_tf);
-  ROS_INFO("Vehicle tf: %s", vehicle_tf.c_str());
-  nh.getParam("world_tf", world_tf);
-  ROS_INFO("World tf: %s", world_tf.c_str());
-  nh.getParam("vehicle_command_topic", vehicle_command_topic);
-  ROS_INFO("Command Vehicle Topic: %s", vehicle_command_topic.c_str());
+
 
   ControllerPtr controller(new Controller(multitasks, n_joints, max_joint_limit, min_joint_limit, max_cartesian_limits, min_cartesian_limits, acceleration, max_joint_vel, sampling_duration, nh, arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic, chains, chain_joint_relations, simulation, p_values, i_values));
   controller->goToGoal();
