@@ -1,8 +1,9 @@
 #include <task_priority/pi_controller.hpp>
 
-PIController::PIController(std::vector<float> p_values, std::vector<float> i_values){
+PIController::PIController(std::vector<float> p_values, std::vector<float> i_values, std::vector<float> d_values){
   p_values_=p_values;
   i_values_=i_values;
+  d_values_=d_values;
   //i_accum_.resize(p_values_.size());
   for(int i=0; i<p_values_.size(); i++){
     error_accum_.push_back(0.0);
@@ -10,6 +11,8 @@ PIController::PIController(std::vector<float> p_values, std::vector<float> i_val
   }
   last_vels_.resize(p_values.size());
   last_joints_.resize(p_values.size());
+  last_error_.resize(p_values.size());
+  error_derivative_.resize(p_values.size());
   init_=false;
 }
 
@@ -48,6 +51,9 @@ void PIController::updateController(std::vector<float> odom, std::vector<float> 
       error_[i]=last_vels_[i]-current_vel;
       error_accum_[i]=error_[i];
     }
+    for(int i=0; i<error_.size(); i++){
+      error_derivative_[i]=(error_[i]-last_error_[i])/seconds;
+    }
   }
   //std::cout<<i_accum_.size()<<std::endl;
   //for(int i=0; i<error_accum_.size(); i++){
@@ -57,6 +63,7 @@ void PIController::updateController(std::vector<float> odom, std::vector<float> 
   last_joints_=current_joints;
 
   last_odom_=odom;
+  last_error_=error_;
 
   wMlv_=wMcv;
   init_=true;
@@ -65,7 +72,8 @@ void PIController::updateController(std::vector<float> odom, std::vector<float> 
 Eigen::MatrixXd PIController::getVels(Eigen::MatrixXd vels, ros::Time time){
   for(int i=0; i<last_vels_.size(); i++){
     last_vels_[i]=vels(i,0);
-    vels(i,0)=vels(i,0)+(p_values_[i]*error_[i])+(i_values_[i]*error_accum_[i]);
+    vels(i,0)=vels(i,0)+(p_values_[i]*error_[i])+(i_values_[i]*error_accum_[i])+(d_values_[i]*error_derivative_[i]);
+    //std::cout<<p_values_[i]*error_[i]<<"   "<<i_values_[i]*error_accum_[i]<<"    "<<d_values_[i]*error_derivative_[i]<<std::endl;
   }
   last_time_=time;
   return vels;

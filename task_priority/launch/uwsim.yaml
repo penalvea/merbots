@@ -12,7 +12,8 @@ min_joint_limit: [-100, -100, -100, -100, -1.3, 0.1,  0.1, -3.14]
 
 
 PID_p_values: [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
-PID_i_values: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+PID_i_values: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+PID_d_values: [0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02]
 
 arm_joint_state_topic: /uwsim/joint_state
 arm_joint_command_topic: /uwsim/joint_state_command
@@ -93,10 +94,10 @@ grasp_pose_task/mask_cartesian: [1, 1, 1, 1, 1, 1]
 grasp_pose_task/mask_joint: [1,1, 1,1,1,1,1,1]
 grasp_pose_task/goal_type: Grasp
 grasp_pose_task/goal/topic: /task_priority_pose
-grasp_pose_task/goal/force_sensor: True
-grasp_pose_task/goal/force_sensor/topic: topic_
+grasp_pose_task/goal/force_sensor/active: True
+grasp_pose_task/goal/force_sensor/topic: /optoforce6DSensor
 grasp_pose_task/goal/force_sensor/max_force: 200
-grasp_pose_task/goal/force_sensor/set_zero_srv: setZero
+grasp_pose_task/goal/force_sensor/set_zero_srv: /optoforce6DSensor/setSensorZero
 grasp_pose_task/frame_inertial: True
 
 

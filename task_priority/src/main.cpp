@@ -39,15 +39,20 @@ int main(int argc, char **argv){
     return -1;
   }
 
-  std::vector<float> p_values, i_values;
+  std::vector<float> p_values, i_values, d_values;
   nh.getParam("PID_p_values", p_values);
   nh.getParam("PID_i_values", i_values);
+  nh.getParam("PID_d_values", d_values);
   if(p_values.size()!=n_joints){
-    ROS_ERROR("PID: %d p values needes", n_joints);
+    ROS_ERROR("PID: %d p values needed", n_joints);
     return -1;
   }
   if(i_values.size()!=n_joints){
-    ROS_ERROR("PID: %d i values needes", n_joints);
+    ROS_ERROR("PID: %d i values needed", n_joints);
+    return -1;
+  }
+  if(d_values.size()!=n_joints){
+    ROS_ERROR("PID: %d d values needed", n_joints);
     return -1;
   }
 
@@ -284,7 +289,7 @@ int main(int argc, char **argv){
         bool force_sensor;
         float max_force;
         std::string force_sensor_topic, set_zero_srv;
-        nh.getParam(task_names[j]+"/goal/force_sensor", force_sensor);
+        nh.getParam(task_names[j]+"/goal/force_sensor/active", force_sensor);
         ROS_INFO("            Force sensor: %d", force_sensor);
         if(force_sensor){
           nh.getParam(task_names[j]+"/goal/force_sensor/topic", force_sensor_topic);
@@ -319,7 +324,7 @@ int main(int argc, char **argv){
 
 
 
-  ControllerPtr controller(new Controller(multitasks, n_joints, max_joint_limit, min_joint_limit, max_cartesian_limits, min_cartesian_limits, acceleration, max_joint_vel, sampling_duration, nh, arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic, chains, chain_joint_relations, simulation, p_values, i_values));
+  ControllerPtr controller(new Controller(multitasks, n_joints, max_joint_limit, min_joint_limit, max_cartesian_limits, min_cartesian_limits, acceleration, max_joint_vel, sampling_duration, nh, arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic, chains, chain_joint_relations, simulation, p_values, i_values, d_values));
   controller->goToGoal();
 
 

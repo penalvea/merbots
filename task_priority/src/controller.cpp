@@ -3,7 +3,7 @@
 
 
 
-Controller::Controller(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, bool simulation, std::vector<float> p_values, std::vector<float> i_values){
+Controller::Controller(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, bool simulation, std::vector<float> p_values, std::vector<float> i_values, std::vector<float> d_values){
 multitasks_=multitasks;
 n_joints_=n_joints;
 max_joint_limit_=max_joint_limit;
@@ -27,7 +27,7 @@ simulation_=simulation;
 
 ///////////////////PI Controller/////////////////////
 
-pi_controller_.reset(new PIController(p_values, i_values));
+pi_controller_.reset(new PIController(p_values, i_values, d_values));
 
 
 //////////////////////////////////77
@@ -191,12 +191,14 @@ void Controller::goToGoal(){
       //std::cout<<vels<<std::endl;
 
       vels=pi_controller_->getVels(vels, ros::Time::now());
+
+     // std::cout<<vels<<std::endl;
       //std::cout<<"---------"<<std::endl;
-      //std::cout<<vels<<std::endl;
 
       //////////////////////////////////////
 
 
+      //std::cout<<vels<<std::endl;
       publishVels(vels);
       //std::cout<<"despues publish"<<std::endl;
 
@@ -260,12 +262,12 @@ void Controller::publishVels(Eigen::MatrixXd vels){
   vehicle_msg.goal.requester="irslab";
   vehicle_msg.goal.id=0;
   vehicle_msg.goal.priority=10;
-  vehicle_msg.twist.linear.x=0.5*vels(0,0);
-  vehicle_msg.twist.linear.y=0.5*vels(1,0);
-  vehicle_msg.twist.linear.z=0.5*vels(2,0);
+  vehicle_msg.twist.linear.x=vels(0,0);
+  vehicle_msg.twist.linear.y=vels(1,0);
+  vehicle_msg.twist.linear.z=vels(2,0);
   vehicle_msg.twist.angular.x=0;
   vehicle_msg.twist.angular.y=0;
-  vehicle_msg.twist.angular.z=0.5*vels(3,0);
+  vehicle_msg.twist.angular.z=vels(3,0);
 
   vehicle_msg.disable_axis.roll=true;
   vehicle_msg.disable_axis.pitch=true;
@@ -288,7 +290,7 @@ void Controller::publishVels(Eigen::MatrixXd vels){
   }
   else{
     for(int i=5; i<9; i++){
-      joint_msg.velocity.push_back(3*vels(i,0));
+      joint_msg.velocity.push_back(vels(i,0));
     }
   }
   joint_msg.velocity.push_back(0);

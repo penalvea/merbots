@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
    FILES
    grasp_srv.srv
    open_gripper_srv.srv
+   grasp_station_srv.srv
  )
 
 generate_messages(

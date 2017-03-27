@@ -328,7 +328,7 @@ GoalGrasp::GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string p
   pose_sub_=nh_.subscribe<geometry_msgs::Pose>(pose_topic, 1, &GoalGrasp::poseCallback, this);
 
   if(force_sensor){
-    force_sub_=nh_.subscribe<geometry_msgs::Wrench>(force_sensor_topic, 1, &GoalGrasp::forceCallback, this);
+    force_sub_=nh_.subscribe<geometry_msgs::WrenchStamped>(force_sensor_topic, 1, &GoalGrasp::forceCallback, this);
     max_force_=max_force;
     current_force_=0;
     force_set_zero_=nh_.serviceClient<std_srvs::Empty>(force_set_zero);
@@ -339,25 +339,48 @@ GoalGrasp::GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string p
 }
 GoalGrasp::~GoalGrasp(){}
 
-void GoalGrasp::forceCallback(const geometry_msgs::Wrench::ConstPtr &msg){
-  current_force_=msg->torque.y;
-  if(current_force_>max_force_){
-    force_detected_=true;
-    if(force_direction_==0){
-      force_direction_=1;
+void GoalGrasp::forceCallback(const geometry_msgs::WrenchStamped::ConstPtr &msg){
+  std::cout<<msg->wrench.torque.y<<"    "<<msg->wrench.torque.z<<"    "<<force_direction_<<std::endl;
+  if(std::abs(msg->wrench.torque.y)> max_force_ || std::abs(msg->wrench.torque.z)> max_force_){
+    if(std::abs(msg->wrench.torque.y)>std::abs(msg->wrench.torque.z)){
+      if(msg->wrench.torque.y>max_force_){
+        force_detected_=true;
+        current_force_=msg->wrench.torque.y;
+        if(force_direction_==0){
+          force_direction_=1;
+        }
+      }
+      else if(msg->wrench.torque.y<-max_force_){
+        force_detected_=true;
+        current_force_=msg->wrench.torque.y;
+        if(force_direction_==0){
+          force_direction_=-1;
+        }
+      }
     }
-    ROS_INFO("Force detected: %f", current_force_);
-  }
-  else if(current_force_<-max_force_){
-    force_detected_=true;
-    if(force_direction_==0){
-      force_direction_=-1;
+    else{
+      if(msg->wrench.torque.z>max_force_){
+        force_detected_=true;
+        current_force_=msg->wrench.torque.z;
+        if(force_direction_==0){
+          force_direction_=-1;
+        }
+      }
+      else if(msg->wrench.torque.z<-max_force_){
+        force_detected_=true;
+        current_force_=msg->wrench.torque.z;
+        if(force_direction_==0){
+          force_direction_=1;
+        }
+      }
     }
     ROS_INFO("Force detected: %f", current_force_);
   }
   else{
     force_detected_=false;
     last_detection_=false;
+    force_direction_=0;
+    current_force_=0;
   }
 
 }
@@ -396,21 +419,21 @@ Eigen::MatrixXd GoalGrasp::getGoal(std::vector<float> joints, std::vector<float>
     increment.setZero();
     if(((goal_.position.z)-cartpos.p.z() +getCartesianOffset()(2,0))>0.05){
 
-      if(current_force_>0){
-        Eigen::Transform<double, 3, Eigen::Affine> wMdir=Eigen::Translation3d(cartpos.p.x(), cartpos.p.y(),cartpos.p.z())*quat_current*Eigen::Translation3d(0.01, 0.0, 0.0);
+      if(force_direction_==1){
+        Eigen::Transform<double, 3, Eigen::Affine> wMdir=Eigen::Translation3d(cartpos.p.x(), cartpos.p.y(),cartpos.p.z())*quat_current*Eigen::Translation3d(0.05, 0.0, 0.0);
         increment(0,0)=wMdir(0,3)-cartpos.p.x();
         increment(1,0)=wMdir(1,3)-cartpos.p.y();
         incrementOffset(increment);
       }
-      else{
-        Eigen::Transform<double, 3, Eigen::Affine> wMdir=Eigen::Translation3d(cartpos.p.x(), cartpos.p.y(),cartpos.p.z())*quat_current*Eigen::Translation3d(-0.01, 0.0, 0.0);
+      else if(force_direction_==-1){
+        Eigen::Transform<double, 3, Eigen::Affine> wMdir=Eigen::Translation3d(cartpos.p.x(), cartpos.p.y(),cartpos.p.z())*quat_current*Eigen::Translation3d(-0.05, 0.0, 0.0);
         increment(0,0)=wMdir(0,3)-cartpos.p.x();
         increment(1,0)=wMdir(1,3)-cartpos.p.y();
         incrementOffset(increment);
       }
     }
     else{
-      Eigen::Transform<double, 3, Eigen::Affine> wMdir=Eigen::Translation3d(cartpos.p.x(), cartpos.p.y(),cartpos.p.z())*quat_current*Eigen::Translation3d(0.0, 0.0, -0.01);
+      Eigen::Transform<double, 3, Eigen::Affine> wMdir=Eigen::Translation3d(cartpos.p.x(), cartpos.p.y(),cartpos.p.z())*quat_current*Eigen::Translation3d(0.0, 0.0, -0.03);
       increment(0,0)=wMdir(0,3)-cartpos.p.x();
       increment(1,0)=wMdir(1,3)-cartpos.p.y();
       incrementOffset(increment);
@@ -430,7 +453,7 @@ Eigen::MatrixXd GoalGrasp::getGoal(std::vector<float> joints, std::vector<float>
   }
   else{
     if(step_==0){
-      cartesian_vel(2,0)=(goal_.position.z-0.2)-cartpos.p.z()  +getCartesianOffset()(2,0);
+      cartesian_vel(2,0)=(goal_.position.z-0.5)-cartpos.p.z()  +getCartesianOffset()(2,0);
     }
     else if(step_==1){
       cartesian_vel(2,0)=(goal_.position.z)-cartpos.p.z() +getCartesianOffset()(2,0);
@@ -447,30 +470,32 @@ Eigen::MatrixXd GoalGrasp::getGoal(std::vector<float> joints, std::vector<float>
       cartesian_vel(i,0)=0;
     }
   }
-  std::cout<<"desired   ------    current"<<std::endl;
+  /*std::cout<<"desired   ------    current"<<std::endl;
   std::cout<<goal_.position.x<<"   ---  "<<cartpos.p.x()<<std::endl;
   std::cout<<goal_.position.y<<"   ---  "<<cartpos.p.y()<<std::endl;
   std::cout<<goal_.position.z<<"   ---  "<<cartpos.p.z()<<std::endl;
   std::cout<<quat_desired.x()<<"   ---  "<<quat_current.x()<<std::endl;
   std::cout<<quat_desired.y()<<"   ---  "<<quat_current.y()<<std::endl;
   std::cout<<quat_desired.z()<<"   ---  "<<quat_current.z()<<std::endl;
-  std::cout<<quat_desired.w()<<"   ---  "<<quat_current.w()<<std::endl;
+  std::cout<<quat_desired.w()<<"   ---  "<<quat_current.w()<<std::endl;*/
 
   cartesian_vel=limitCaresianVel(cartesian_vel);
-  std::cout<<"Step="<<step_<<std::endl;
+ /* std::cout<<"Step="<<step_<<std::endl;
   std::cout<<"Cartesian_vel"<<std::endl;
-  std::cout<<cartesian_vel<<std::endl;
+  std::cout<<cartesian_vel<<std::endl;*/
   last_cartesian_vel_=cartesian_vel;
   float eucl=0;
   for(int i=0; i<cartesian_vel.rows(); i++){
     eucl+=(cartesian_vel(i,0)*cartesian_vel(i,0));
   }
   eucl=std::sqrt(eucl);
-  std::cout<<"euclidean error= "<<eucl<<std::endl;
+  //std::cout<<"euclidean error= "<<eucl<<std::endl;
   if(eucl<0.03){
     pose_reached_++;
     if(pose_reached_>=5){
       step_++;
+      std_srvs::Empty empty;
+      force_set_zero_.call(empty);
       pose_reached_=0;
       if(step_==2){
         /*std_srvs::Empty empty_srv;

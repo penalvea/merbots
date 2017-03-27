@@ -3,4 +3,5 @@
 
         <node name="multi_task_priority" pkg="task_priority" type="multi_task_priority" output="screen" respawn="false"/>
         <node name="grasp_srv_server" pkg="merbots_grasp_srv" type="grasp_srv_server" output="screen" respawn="false"/>
+        <node name="mainOptoforce6DSensor" pkg="optoforce_driver" type="mainOptoforce6DSensor" output="screen" respawn="false"/>
 </launch>

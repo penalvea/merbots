@@ -1,0 +1,120 @@
+acceleration: 2
+max_joint_vel: 0.1
+max_cartesian_vel: 0.2
+sampling_duration: 0.1
+
+simulation: false
+
+n_joints: 9
+
+max_joint_limit: [100,   100,  100,  100, 100,  0.4, 1.37, 1.4529, 3.14]
+min_joint_limit: [-100, -100, -100, -100, -100, -1.3, 0.1,  0.1,   -3.14]
+
+PID_p_values: [0.1, 0.1, 0.2, 0.1, 0.0, 2.0, 3.0, 5.0, 0.8]
+PID_i_values: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+PID_d_values: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+arm_joint_state_topic: /arm5e/joint_state_angle
+arm_joint_command_topic: /arm5e/command_angle
+
+vehicle_tf: girona500
+world_tf: world
+vehicle_command_topic: /cola2_control/body_velocity_req
+
+
+
+chain_names: [auv_arm, auv]
+
+
+
+auv_arm/joint_1: [TransX]
+auv_arm/joint_2: [TransY]
+auv_arm/joint_3: [TransZ]
+auv_arm/joint_4: [RotZ, 0.0275, 0.0, 0.66, -1.5708]
+auv_arm/joint_5: [RotZ, -0.18052, 0.0, 0.0, -1.5708]
+auv_arm/joint_6: [RotZ, 0.08052, 1.5708, 0.0, 0.0]
+auv_arm/joint_7: [RotZ, 0.44278, 0.0, 0.0, 0.139277274]
+auv_arm/joint_8: [RotZ, -0.083, 1.5708, 0.0, 1.972222055]
+auv_arm/joint_9: [RotZ, 0.0, 0.0, 0.56138, 0.0]
+
+
+auv_arm/chain_joint_relation: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+auv_arm/max_cartesian_limit: [20,20,20, 20, 20, 20]
+auv_arm/min_cartesian_limit: [-20,-20,-20, -20, -20, -20]
+
+
+auv/joint_1: [TransX]
+auv/joint_2: [TransY]
+auv/joint_3: [TransZ]
+auv/joint_4: [RotZ]
+
+auv/chain_joint_relation: [0, 1, 2, 3]
+auv/max_cartesian_limit: [20,20, 3.5, 6.28, 6.28, 6.28]
+auv/min_cartesian_limit: [-20,-20,-20, -6.28, -6.28, -6.28]
+
+
+
+
+multitask_priority: [grasp_pose_multi, slew_zero_multi, shoulder_multi, elbow_multi]
+
+
+
+grasp_pose_multi/tasks: [grasp_pose_task]
+grasp_pose_multi/joint_priority_1: [0,1,2,3,5,6,7,8]
+
+slew_zero_multi/tasks: [slew_zero_task]
+slew_zero_multi/joint_priority_1: [0,1,2,3,5,6,7,8]
+
+shoulder_multi/tasks: [shoulder_task]
+shoulder_multi/joint_priority_1: [0,1,2,3,5,6,7,8]
+
+elbow_multi/tasks: [elbow_task]
+elbow_multi/joint_priority_1: [0,1,2,3,5,6,7,8]
+
+
+
+
+
+
+grasp_pose_task/chain: auv_arm
+grasp_pose_task/cartesian: True
+grasp_pose_task/mask_cartesian: [1, 1, 1, 1, 1, 1]
+grasp_pose_task/mask_joint: [1,1, 1,1,0,1,1,1,1]
+grasp_pose_task/goal_type: Grasp
+grasp_pose_task/goal/topic: /task_priority_pose
+grasp_pose_task/goal/force_sensor/topic: /optoforce6DSensor
+grasp_pose_task/goal/force_sensor/max_force: 200
+grasp_pose_task/goal/force_sensor/set_zero_srv: /optoforce6DSensor/setSensorZero
+grasp_pose_task/frame_inertial: True
+
+
+
+slew_zero_task/chain: auv_arm
+slew_zero_task/cartesian: False
+slew_zero_task/mask_cartesian: [1, 1, 1, 1, 1, 1]
+slew_zero_task/mask_joint: [0,0, 0, 0,0,1,0,0,0]
+slew_zero_task/goal_type: Joints
+slew_zero_task/goal/joints_position: [0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0]
+slew_zero_task/frame_inertial: True
+
+
+shoulder_task/chain: auv_arm
+shoulder_task/cartesian: False
+shoulder_task/mask_cartesian: [1, 1, 1, 1, 1, 1]
+shoulder_task/mask_joint: [0,0, 0, 0,0,0,1,0,0]
+shoulder_task/goal_type: Joints
+shoulder_task/goal/joints_position: [0, 0, 0, 0, 0, 0.0, 1.0, 0.0, 0.0]
+shoulder_task/frame_inertial: True
+
+
+elbow_task/chain: auv_arm
+elbow_task/cartesian: False
+elbow_task/mask_cartesian: [1, 1, 1, 1, 1, 1]
+elbow_task/mask_joint: [0,0, 0, 0,0,0,0,1,0]
+elbow_task/goal_type: Joints
+elbow_task/goal/joints_position: [0, 0, 0, 0, 0, 0.0, 0.0, 0.7, 0.0]
+elbow_task/frame_inertial: True
+
+
+
+
