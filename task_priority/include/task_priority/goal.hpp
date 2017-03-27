@@ -115,6 +115,10 @@ class GoalGrasp: public Goal{
   int force_direction_;
   ros::ServiceClient force_set_zero_;
 
+  // Force offset vars
+  float force_offfset_torque_y_, force_offfset_torque_z_;
+  bool reset_offset_next_callback_;
+
 
   void poseCallback(const geometry_msgs::Pose::ConstPtr& msg);
   void forceCallback(const geometry_msgs::WrenchStamped::ConstPtr& msg);

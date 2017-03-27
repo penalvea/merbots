@@ -332,43 +332,59 @@ GoalGrasp::GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string p
     max_force_=max_force;
     current_force_=0;
     force_set_zero_=nh_.serviceClient<std_srvs::Empty>(force_set_zero);
+    // Forzar inizialización.
+    reset_offset_next_callback_ = true;
     last_detection_=false;
     force_detected_=false;
   }
 
 }
+
 GoalGrasp::~GoalGrasp(){}
 
 void GoalGrasp::forceCallback(const geometry_msgs::WrenchStamped::ConstPtr &msg){
   std::cout<<msg->wrench.torque.y<<"    "<<msg->wrench.torque.z<<"    "<<force_direction_<<std::endl;
-  if(std::abs(msg->wrench.torque.y)> max_force_ || std::abs(msg->wrench.torque.z)> max_force_){
-    if(std::abs(msg->wrench.torque.y)>std::abs(msg->wrench.torque.z)){
-      if(msg->wrench.torque.y>max_force_){
+
+  if( reset_offset_next_callback_ ){
+    force_offfset_torque_y_ = msg->wrench.torque.y;
+    force_offfset_torque_z_ = msg->wrench.torque.z;
+    reset_offset_next_callback_ = false;
+  }
+
+  double torque_y, torque_z;
+  torque_y = msg->wrench.torque.y - force_offfset_torque_y_;
+  torque_z = msg->wrench.torque.z - force_offfset_torque_z_;
+
+  std::cout<<"Corrected y:"<<torque_y<<"  z  "<<torque_z<<std::endl;
+
+  if(std::abs(torque_y)> max_force_ || std::abs(torque_z)> max_force_){
+    if(std::abs(torque_y)>std::abs(torque_z)){
+      if(torque_y>max_force_){
         force_detected_=true;
-        current_force_=msg->wrench.torque.y;
+        current_force_=torque_y;
         if(force_direction_==0){
           force_direction_=1;
         }
       }
-      else if(msg->wrench.torque.y<-max_force_){
+      else if(torque_y<-max_force_){
         force_detected_=true;
-        current_force_=msg->wrench.torque.y;
+        current_force_=torque_y;
         if(force_direction_==0){
           force_direction_=-1;
         }
       }
     }
     else{
-      if(msg->wrench.torque.z>max_force_){
+      if(torque_z>max_force_){
         force_detected_=true;
-        current_force_=msg->wrench.torque.z;
+        current_force_=torque_z;
         if(force_direction_==0){
           force_direction_=-1;
         }
       }
-      else if(msg->wrench.torque.z<-max_force_){
+      else if(torque_z<-max_force_){
         force_detected_=true;
-        current_force_=msg->wrench.torque.z;
+        current_force_=torque_z;
         if(force_direction_==0){
           force_direction_=1;
         }
@@ -496,6 +512,8 @@ Eigen::MatrixXd GoalGrasp::getGoal(std::vector<float> joints, std::vector<float>
       step_++;
       std_srvs::Empty empty;
       force_set_zero_.call(empty);
+      // Forzar inizialización.
+      reset_offset_next_callback_ = true;
       pose_reached_=0;
       if(step_==2){
         /*std_srvs::Empty empty_srv;
