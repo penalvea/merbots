@@ -1,0 +1,13 @@
+string command_topic
+string joint_state_topic
+float32 grasped_current
+string station_topic
+float32 north
+float32 east
+float32 depth
+float32 roll
+float32 pitch
+float32 yaw
+
+---
+bool success
