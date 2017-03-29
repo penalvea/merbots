@@ -114,6 +114,7 @@ bool Grasp::doOpening(merbots_grasp_srv::open_gripper_srv::Request &req, merbots
 
 
 bool Grasp::doGraspingStation(merbots_grasp_srv::grasp_station_srv::Request &req, merbots_grasp_srv::grasp_station_srv::Response &res){
+  ros::Rate r(10);
   sensor0_initial_=sensor0_;
   sensor1_initial_=sensor1_;
   sensor2_initial_=sensor2_;
@@ -138,6 +139,10 @@ bool Grasp::doGraspingStation(merbots_grasp_srv::grasp_station_srv::Request &req
   station_msg.orientation.pitch=req.pitch;
   station_msg.orientation.yaw=req.yaw;
 
+  station_msg.disable_axis.roll=true;
+  station_msg.disable_axis.pitch=true;
+  station_msg.disable_axis.yaw=true;
+
   station_msg.position_tolerance.x=0;
   station_msg.position_tolerance.y=0;
   station_msg.position_tolerance.z=0;
@@ -146,19 +151,36 @@ bool Grasp::doGraspingStation(merbots_grasp_srv::grasp_station_srv::Request &req
   station_msg.orientation_tolerance.yaw=0;
 
   while(ros::ok() && !initialized_station_){
-    usleep(1000);
+    r.sleep();
     ros::spinOnce();
   }
   joint_msg_.velocity[4]=-0.3;
-  while(effort_station_<req.grasped_current && gripper_pose_station_>=0.05 && ros::ok() && !isGrasped()){
+  int current_detected=0;
+  while(current_detected<5 && gripper_pose_station_>=0.05 && ros::ok() && !isGrasped()){
+    if(effort_station_>req.grasped_current){
+      current_detected++;
+    }
     joint_msg_.header.stamp=ros::Time::now();
     joint_pub_.publish(joint_msg_);
     station_msg.header.stamp=ros::Time::now();
     station_pub_.publish(station_msg);
     ros::spinOnce();
-    usleep(1000);
+    r.sleep();
+
   }
-  if(effort_station_>=req.grasped_current){
+  if(current_detected>=5){
+    station_msg.position.depth=1.0;
+
+    std::cout<<"subimos"<<std::endl;
+
+    while (ros::ok()) {
+      station_msg.header.stamp=ros::Time::now();
+      station_pub_.publish(station_msg);
+      ros::spinOnce();
+      r.sleep();
+    }
+    std::cout<<"salimos subir"<<std::endl;
+
     res.success=true;
   }
   else{
@@ -169,7 +191,7 @@ bool Grasp::doGraspingStation(merbots_grasp_srv::grasp_station_srv::Request &req
       station_msg.header.stamp=ros::Time::now();
       station_pub_.publish(station_msg);
       ros::spinOnce();
-      usleep(1000);
+      r.sleep();
     }
     joint_msg_.velocity[4]=-0.3;
     res.success=false;
