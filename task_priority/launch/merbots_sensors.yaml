@@ -10,11 +10,11 @@ n_joints: 9
 max_joint_limit: [100,   100,  100,  100, 100,  0.4, 1.37, 1.4529, 3.14]
 min_joint_limit: [-100, -100, -100, -100, -100, -1.3, 0.1,  0.1,   -3.14]
 
-PID_p_values: [0.1, 0.1, 0.2, 0.1, 0.0, 2.0, 3.0, 5.0, 0.8]
-PID_i_values: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-PID_d_values: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+PID_p_values: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+PID_i_values: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+PID_d_values: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-arm_joint_state_topic: /arm5e/joint_state_angle
+arm_joint_state_topic: /arm5e/joint_state_angle_fixed
 arm_joint_command_topic: /arm5e/command_angle
 
 vehicle_tf: girona500
@@ -49,7 +49,7 @@ auv/joint_3: [TransZ]
 auv/joint_4: [RotZ]
 
 auv/chain_joint_relation: [0, 1, 2, 3]
-auv/max_cartesian_limit: [20,20, 3.5, 6.28, 6.28, 6.28]
+auv/max_cartesian_limit: [20,20, 20, 6.28, 6.28, 6.28]
 auv/min_cartesian_limit: [-20,-20,-20, -6.28, -6.28, -6.28]
 
 
@@ -59,8 +59,9 @@ multitask_priority: [grasp_pose_multi, slew_zero_multi, shoulder_multi, elbow_mu
 
 
 
+
 grasp_pose_multi/tasks: [grasp_pose_task]
-grasp_pose_multi/joint_priority_1: [0,1,2,3,5,6,7,8]
+grasp_pose_multi/joint_priority_1: [0,1,2,3,5,6,7]
 
 slew_zero_multi/tasks: [slew_zero_task]
 slew_zero_multi/joint_priority_1: [0,1,2,3,5,6,7,8]
@@ -75,13 +76,12 @@ elbow_multi/joint_priority_1: [0,1,2,3,5,6,7,8]
 
 
 
-
 grasp_pose_task/chain: auv_arm
 grasp_pose_task/cartesian: True
 grasp_pose_task/mask_cartesian: [1, 1, 1, 1, 1, 1]
-grasp_pose_task/mask_joint: [1,1, 1,1,0,1,1,1,1]
+grasp_pose_task/mask_joint: [1,1, 1,1,0,1,1,1,0]
 grasp_pose_task/goal_type: Grasp
-grasp_pose_task/goal/topic: /task_priority_pose
+grasp_pose_task/goal/topic: /final_grasp
 grasp_pose_task/goal/force_sensor/topic: /optoforce6DSensor
 grasp_pose_task/goal/force_sensor/max_force: 200
 grasp_pose_task/goal/force_sensor/set_zero_srv: /optoforce6DSensor/setSensorZero

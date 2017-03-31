@@ -334,8 +334,8 @@ Eigen::MatrixXd MultiTask::limitJointsAndCartesian(Eigen::MatrixXd vels){
             finished=false;
             limit_cartesian=true;
             std::fill(active_joints.begin(), active_joints.end(), 0);
-            std::cout<<"Cartesian chain "<<i<<" axis "<<j<<" mayor que max_positive"<<std::endl;
-            std::cout<<cartesian_velocity(i*6+j)<<"    ----->  "<<max_positive_cartesian_vel_[i][j]<<std::endl;
+            //std::cout<<"Cartesian chain "<<i<<" axis "<<j<<" mayor que max_positive"<<std::endl;
+            //std::cout<<cartesian_velocity(i*6+j)<<"    ----->  "<<max_positive_cartesian_vel_[i][j]<<std::endl;
           }
           else if(cartesian_velocity(i*6+j,0)<max_negative_cartesian_vel_[i][j]-0.000001){
             active_cartesians[i*6+j]=1;
@@ -344,8 +344,8 @@ Eigen::MatrixXd MultiTask::limitJointsAndCartesian(Eigen::MatrixXd vels){
             finished=false;
             limit_cartesian=true;
             std::fill(active_joints.begin(), active_joints.end(), 0);
-            std::cout<<"Cartesian chain "<<i<<" axis "<<j<<" menor que max_negative"<<std::endl;
-            std::cout<<cartesian_velocity(i*6+j)<<"    ----->  "<<max_negative_cartesian_vel_[i][j]<<std::endl;
+            //std::cout<<"Cartesian chain "<<i<<" axis "<<j<<" menor que max_negative"<<std::endl;
+            //std::cout<<cartesian_velocity(i*6+j)<<"    ----->  "<<max_negative_cartesian_vel_[i][j]<<std::endl;
           }
           else if(active_cartesians[i*6+j]==1){
             desired_vel_cartesian(i*6+j,0)=0;
@@ -360,16 +360,16 @@ Eigen::MatrixXd MultiTask::limitJointsAndCartesian(Eigen::MatrixXd vels){
           active_joints[i]=1;
           desired_vel_joint(i,0)=max_positive_joint_vel_[i]-vels(i,0);
           finished=false;
-          std::cout<<"Joint "<<i<<"mayor que max_positive"<<std::endl;
-          std::cout<<vels(i,0)<<"    ----->  "<<max_positive_joint_vel_[i]<<std::endl;
+          //std::cout<<"Joint "<<i<<"mayor que max_positive"<<std::endl;
+          //std::cout<<vels(i,0)<<"    ----->  "<<max_positive_joint_vel_[i]<<std::endl;
         }
         else if(vels(i,0)<max_negative_joint_vel_[i]-0.000001){
           //jac_joint(i,i)=1;
           active_joints[i]=1;
           desired_vel_joint(i,0)=max_negative_joint_vel_[i]-vels(i,0);
           finished=true;
-          std::cout<<"Joint "<<i<<"mayor que max_negative"<<std::endl;
-          std::cout<<vels(i,0)<<"    ----->  "<<max_negative_joint_vel_[i]<<std::endl;
+          //std::cout<<"Joint "<<i<<"mayor que max_negative"<<std::endl;
+          //std::cout<<vels(i,0)<<"    ----->  "<<max_negative_joint_vel_[i]<<std::endl;
         }
         else if(active_joints[i]==1){
           desired_vel_joint(i,0)=0;

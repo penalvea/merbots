@@ -281,6 +281,15 @@ int main(int argc, char **argv){
         GoalJointsPositionPtr goal_joint(new GoalJointsPosition(joints_position));
         goal=goal_joint;
       }
+      else if(goal_type=="JointsROS"){
+        ROS_INFO("        Goal: Joints ROS");
+        std::string joints_topic;
+        nh.getParam(task_names[j]+"/goal/joints_topic", joints_topic);
+        ROS_INFO("            Desired Joints Topic: %s", joints_topic.c_str());
+        GoalROSJointsStatePtr goal_joint_ros(new GoalROSJointsState(joints_topic, nh));
+        goal=goal_joint_ros;
+
+      }
       else if(goal_type=="Grasp"){
         ROS_INFO("        Goal: Grasp");
         std::string goal_topic;

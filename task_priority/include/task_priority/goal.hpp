@@ -12,6 +12,11 @@
 #include <merbots_grasp_srv/grasp_station_srv.h>
 #include <std_srvs/Empty.h>
 #include <geometry_msgs/WrenchStamped.h>
+#include <sensor_msgs/JointState.h>
+#include <std_msgs/Bool.h>
+#include <tf/tf.h>
+#include <kdl/chainjnttojacsolver.hpp>
+#include <std_msgs/String.h>
 
 
 
@@ -129,6 +134,27 @@ public:
   task_priority::Error_msg getMsg(Eigen::MatrixXd vels, std::vector<int> mask);
 };
 typedef boost::shared_ptr<GoalGrasp> GoalGraspPtr;
+
+
+class GoalROSJointsState: public Goal{
+  std::vector<float> joints_position_;
+  Eigen::MatrixXd last_joint_vel_;
+  ros::Subscriber joint_state_sub_;
+  ros::NodeHandle nh_;
+  ros::Publisher finished_pub_;
+  ros::Subscriber grasping_sub_;
+  int grasping_;
+  ros::ServiceClient grasp_client_;
+
+  void graspingCallback(const std_msgs::String::ConstPtr &msg);
+  void jointsCallback(const sensor_msgs::JointState::ConstPtr &msg);
+public:
+  GoalROSJointsState(std::string topic_name, ros::NodeHandle nh);
+  ~GoalROSJointsState();
+  Eigen::MatrixXd getGoal(std::vector<float> joints, std::vector<float> odom);
+  task_priority::Error_msg getMsg(Eigen::MatrixXd vels, std::vector<int> mask);
+};
+typedef boost::shared_ptr<GoalROSJointsState> GoalROSJointsStatePtr;
 
 
 

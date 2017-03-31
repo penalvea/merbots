@@ -122,8 +122,12 @@ void Controller::goToGoal(){
       for(int i=0; i<multitasks_.size(); i++){
         if(!multitasks_[i]->goalsInitialized()){
           initialized=false;
+          std::cout<<"Task "<<i<<" not initialized"<<std::endl;
         }
       }
+    }
+    else{
+      std::cout<<"joints not initialized"<<std::endl;
     }
     ros::Duration(sampling_duration_).sleep();
     ros::spinOnce();
@@ -142,6 +146,17 @@ void Controller::goToGoal(){
       odom[3]=odom_euler[0];
       odom[4]=odom_euler[1];
       odom[5]=odom_euler[2];
+
+
+      //Dina
+      tf::Matrix3x3 mat_odom(transform.getRotation());
+      double roll_d, pitch_d, yaw_d;
+      mat_odom.getRPY(roll_d, pitch_d, yaw_d);
+
+      odom[3]=roll_d;
+      odom[4]=pitch_d;
+      odom[5]=yaw_d;
+
 
       ////////////////////////////PI Controller//////////////7777777
 
@@ -290,7 +305,7 @@ void Controller::publishVels(Eigen::MatrixXd vels){
   }
   else{
     for(int i=5; i<9; i++){
-      joint_msg.velocity.push_back(vels(i,0));
+      joint_msg.velocity.push_back(5*vels(i,0));
     }
   }
   joint_msg.velocity.push_back(0);
