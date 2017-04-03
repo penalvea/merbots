@@ -785,11 +785,11 @@ Eigen::MatrixXd GoalROSJointsState::getGoal(std::vector<float> joints, std::vect
   if(grasping_==0){
     bool finished=true;
     for(int i=0; i<3; i++){
-      if(mat(i,0)>0.08)
+      if(mat(i,0)>0.05)
         finished=false;
     }
     for(int i=4; i<9; i++){
-      if(mat(i,0)>0.3)
+      if(mat(i,0)>0.1)
         finished=false;
     }
     if(finished){
@@ -844,7 +844,7 @@ Eigen::MatrixXd GoalROSJointsState::getGoal(std::vector<float> joints, std::vect
   }
   if(grasping_==2){
     std::cout<<"into sleep function"<<std::endl;
-    merbots_grasp_srv::grasp_station_srv srv;
+    /*merbots_grasp_srv::grasp_station_srv srv;
     srv.request.command_topic="/arm5e/command_angle";
     srv.request.joint_state_topic="/arm5e/joint_state_angle_fixed";
     srv.request.grasped_current=1.6;
@@ -855,7 +855,7 @@ Eigen::MatrixXd GoalROSJointsState::getGoal(std::vector<float> joints, std::vect
     srv.request.roll=odom[3];
     srv.request.pitch=odom[4];
     srv.request.yaw=odom[5];
-    grasp_client_.call(srv);
+    grasp_client_.call(srv);*/
     sleep(10000);
   }
 
