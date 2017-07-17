@@ -21,6 +21,13 @@ Eigen::Vector3d Goal::quaternionsSubstraction(Eigen::Quaterniond quat_desired, E
     quat_current.z()=-1*quat_current.z();
     quat_current.w()=-1*quat_current.w();
   }
+
+  if(quat_desired.w()<0){
+      quat_desired.x()=-1*quat_current.x();
+      quat_desired.y()=-1*quat_current.y();
+      quat_desired.z()=-1*quat_current.z();
+      quat_desired.w()=-1*quat_current.w();
+    }
   Eigen::Vector3d v1(quat_desired.x(), quat_desired.y(), quat_desired.z());
   Eigen::Vector3d v1_aux(quat_desired.x(), quat_desired.y(), quat_desired.z());
   Eigen::Vector3d v2(quat_current.x(), quat_current.y(), quat_current.z());
@@ -29,7 +36,7 @@ Eigen::Vector3d Goal::quaternionsSubstraction(Eigen::Quaterniond quat_desired, E
   double norm=v1_aux.norm();
   double angle=std::atan2(norm, v1.adjoint()*v2);
   if(angle>(M_PI/2)+0.000000000001){
-    std::cout<<"entro quaternion"<<std::endl;
+
     quat_desired.x()=-quat_desired.x();
     quat_desired.y()=-quat_desired.y();
     quat_desired.z()=-quat_desired.z();
@@ -62,7 +69,11 @@ void Goal::setMaxCartesianVel(float max_cartesian_vel){
   max_cartesian_vel_=max_cartesian_vel;
 }
 
-Eigen::MatrixXd Goal::limitCaresianVel(Eigen::MatrixXd vels){
+void Goal::setMaxJointVel(float max_joint_vel){
+  max_joint_vel_=max_joint_vel;
+}
+
+Eigen::MatrixXd Goal::limitCartesianVel(Eigen::MatrixXd vels){
   float max=0;
   for(int i=0; i<vels.rows(); i++){
     if(std::abs(vels(i,0))>max){
@@ -72,6 +83,23 @@ Eigen::MatrixXd Goal::limitCaresianVel(Eigen::MatrixXd vels){
   if(max>max_cartesian_vel_){
     for(int i=0; i<vels.rows(); i++){
       vels(i,0)=vels(i,0)*max_cartesian_vel_/max;
+    }
+  }
+  return vels;
+}
+
+Eigen::MatrixXd Goal::limitJointVel(Eigen::MatrixXd vels){
+  float max=0;
+  for(int i=0; i<vels.rows(); i++){
+    if(std::abs(vels(i,0))>max){
+      max=std::abs(vels(i,0));
+    }
+  }
+  std::cout<<"max vel="<<max<<std::endl;
+  std::cout<<"max_joint_vel="<<max_joint_vel_<<std::endl;
+  if(max>max_joint_vel_){
+    for(int i=0; i<vels.rows(); i++){
+      vels(i,0)=vels(i,0)*max_joint_vel_/max;
     }
   }
   return vels;
@@ -92,7 +120,7 @@ Eigen::MatrixXd Goal::getCartesianOffset(){
 
 
 
-GoalFixedPose::GoalFixedPose(Eigen::MatrixXd goal, KDL::Chain chain, std::vector<int> mask_cart, std::vector<int> joints_relation, float max_cartesian_vel):Goal(){
+GoalFixedPose::GoalFixedPose(Eigen::MatrixXd goal, KDL::Chain chain, std::vector<int> mask_cart, std::vector<int> joints_relation, float max_cartesian_vel, float max_joint_vel):Goal(){
   KDL::Chain chain_odom;
   chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
   chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransY)));
@@ -108,6 +136,7 @@ GoalFixedPose::GoalFixedPose(Eigen::MatrixXd goal, KDL::Chain chain, std::vector
   joints_relation_=joints_relation;
   setInitialized(true);
   setMaxCartesianVel(max_cartesian_vel);
+  setMaxJointVel(max_joint_vel);
 }
 
 GoalFixedPose::~GoalFixedPose(){}
@@ -145,7 +174,7 @@ Eigen::MatrixXd GoalFixedPose::getGoal(std::vector<float> joints, std::vector<fl
       cartesian_vel(i,0)=0;
     }
   }
-  cartesian_vel=limitCaresianVel(cartesian_vel);
+  cartesian_vel=limitCartesianVel(cartesian_vel);
   last_cartesian_vel_=cartesian_vel;
   return cartesian_vel;
 }
@@ -167,7 +196,7 @@ task_priority::Error_msg GoalFixedPose::getMsg(Eigen::MatrixXd vels, std::vector
 }
 
 
-GoalROSPose::GoalROSPose(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel):Goal(){
+GoalROSPose::GoalROSPose(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel, float max_joint_vel):Goal(){
   KDL::Chain chain_odom;
   chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
   chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransY)));
@@ -182,6 +211,7 @@ GoalROSPose::GoalROSPose(KDL::Chain chain, std::vector<int> mask_cart, std::stri
   joints_relation_=joints_relation;
   nh_=nh;
   setMaxCartesianVel(max_cartesian_vel);
+  setMaxJointVel(max_joint_vel);
 
   pose_sub_=nh_.subscribe<geometry_msgs::Pose>(pose_topic, 1, &GoalROSPose::poseCallback, this);
 }
@@ -247,7 +277,7 @@ Eigen::MatrixXd GoalROSPose::getGoal(std::vector<float> joints, std::vector<floa
   }
   std::cout<<"cartesian_vel"<<std::endl;
   std::cout<<cartesian_vel<<std::endl;
-  cartesian_vel=limitCaresianVel(cartesian_vel);
+  cartesian_vel=limitCartesianVel(cartesian_vel);
   last_cartesian_vel_=cartesian_vel;
   return cartesian_vel;
 }
@@ -270,10 +300,11 @@ task_priority::Error_msg GoalROSPose::getMsg(Eigen::MatrixXd vels, std::vector<i
 
 }
 
-GoalROSTwist::GoalROSTwist(std::vector<int> mask_cart, std::string twist_topic, ros::NodeHandle &nh, float max_cartesian_vel):Goal(){
+GoalROSTwist::GoalROSTwist(std::vector<int> mask_cart, std::string twist_topic, ros::NodeHandle &nh, float max_cartesian_vel, float max_joint_vel):Goal(){
   mask_cart_=mask_cart;
   nh_=nh;
   setMaxCartesianVel(max_cartesian_vel);
+  setMaxJointVel(max_joint_vel);
 
   twist_sub_=nh_.subscribe<geometry_msgs::Twist>(twist_topic, 1, &GoalROSTwist::twistCallback, this);
 }
@@ -293,7 +324,7 @@ Eigen::MatrixXd GoalROSTwist::getGoal(std::vector<float> joints, std::vector<flo
   cartesian_vel(3,0)=goal_.angular.x;
   cartesian_vel(4,0)=goal_.angular.y;
   cartesian_vel(5,0)=goal_.angular.z;
-  cartesian_vel=limitCaresianVel(cartesian_vel);
+  cartesian_vel=limitCartesianVel(cartesian_vel);
   last_cartesian_vel_=cartesian_vel;
   return cartesian_vel;
 }
@@ -315,8 +346,10 @@ task_priority::Error_msg GoalROSTwist::getMsg(Eigen::MatrixXd vels, std::vector<
   return msg;
 }
 
-GoalJointsPosition::GoalJointsPosition(std::vector<float> joints_position):Goal(){
+GoalJointsPosition::GoalJointsPosition(std::vector<float> joints_position, std::vector<int> mask_joint, float max_joint_vel):Goal(){
   joints_position_=joints_position;
+  mask_joint_=mask_joint;
+  setMaxJointVel(max_joint_vel);
   setInitialized(true);
 }
 GoalJointsPosition::~GoalJointsPosition(){}
@@ -324,9 +357,19 @@ GoalJointsPosition::~GoalJointsPosition(){}
 Eigen::MatrixXd GoalJointsPosition::getGoal(std::vector<float> joints, std::vector<float> odom){
   Eigen::MatrixXd mat(joints_position_.size(),1);
   for(int i=0; i<joints_position_.size(); i++){
-    mat(i,0)=joints_position_[i]-joints[i];
+    if(mask_joint_[i]==0){
+      mat(i,0)=0;
+    }
+    else{
+      mat(i,0)=joints_position_[i]-joints[i];
+    }
   }
   last_joint_vel_=mat;
+  std::cout<<"mat antes"<<std::endl;
+  std::cout<<mat<<std::endl;
+  mat=limitJointVel(mat);
+  std::cout<<"mat despues"<<std::endl;
+  std::cout<<mat<<std::endl;
   return mat;
 }
 
@@ -351,7 +394,7 @@ task_priority::Error_msg GoalJointsPosition::getMsg(Eigen::MatrixXd vels, std::v
 
 
 
-GoalGrasp::GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel, std::string joint_state_topic, std::string command_joint_topic, bool force_sensor, std::string force_sensor_topic, float max_force, std::string force_set_zero):Goal(){
+GoalGrasp::GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel, float max_joint_vel, std::string joint_state_topic, std::string command_joint_topic, bool force_sensor, std::string force_sensor_topic, float max_force, std::string force_set_zero):Goal(){
   KDL::Chain chain_odom;
   chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
   chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransY)));
@@ -382,6 +425,7 @@ GoalGrasp::GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string p
 
 
   setMaxCartesianVel(max_cartesian_vel);
+  setMaxJointVel(max_joint_vel);
 
   pose_sub_=nh_.subscribe<geometry_msgs::Pose>(pose_topic, 1, &GoalGrasp::poseCallback, this);
 
@@ -654,7 +698,7 @@ Eigen::MatrixXd GoalGrasp::getGoal(std::vector<float> joints, std::vector<float>
     pose_reached_=0;
   }
   cartesian_vel=cartesian_vel*0.5;
-  cartesian_vel=limitCaresianVel(cartesian_vel);
+  cartesian_vel=limitCartesianVel(cartesian_vel);
  std::cout<<"Step="<<step_<<std::endl;
   std::cout<<"Cartesian_vel"<<std::endl;
   std::cout<<cartesian_vel<<std::endl;

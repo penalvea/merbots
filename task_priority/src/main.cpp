@@ -250,7 +250,7 @@ int main(int argc, char **argv){
           msg+=boost::lexical_cast<std::string>(desired_pose[k])+" ";
         }
         ROS_INFO("            Desired Pose: %s", msg.c_str());
-        GoalFixedPosePtr goal_fixed(new GoalFixedPose(desired_pose_eigen, chains[chain_id[task_chain]], task_mask_cartesian, chain_joint_relations[chain_id[task_chain]], max_cartesian_vel));
+        GoalFixedPosePtr goal_fixed(new GoalFixedPose(desired_pose_eigen, chains[chain_id[task_chain]], task_mask_cartesian, chain_joint_relations[chain_id[task_chain]], max_cartesian_vel, max_joint_vel));
         goal=goal_fixed;
       }
       else if(goal_type=="ROS_Pose"){
@@ -258,7 +258,7 @@ int main(int argc, char **argv){
         std::string goal_topic;
         nh.getParam(task_names[j]+"/goal/topic", goal_topic);
         ROS_INFO("            ROS Node: %s", goal_topic.c_str());
-        GoalROSPosePtr goal_ros_pose(new GoalROSPose(chains[chain_id[task_chain]], task_mask_cartesian, goal_topic, nh, chain_joint_relations[chain_id[task_chain]], max_cartesian_vel));
+        GoalROSPosePtr goal_ros_pose(new GoalROSPose(chains[chain_id[task_chain]], task_mask_cartesian, goal_topic, nh, chain_joint_relations[chain_id[task_chain]], max_cartesian_vel, max_joint_vel));
         goal=goal_ros_pose;
       }
       else if(goal_type=="ROS_Twist"){
@@ -266,7 +266,7 @@ int main(int argc, char **argv){
         std::string goal_topic;
         nh.getParam(task_names[j]+"/goal/topic", goal_topic);
         ROS_INFO("            ROS Node: %s", goal_topic.c_str());
-        GoalROSTwistPtr goal_ros_twist(new GoalROSTwist(task_mask_cartesian, goal_topic, nh, max_cartesian_vel));
+        GoalROSTwistPtr goal_ros_twist(new GoalROSTwist(task_mask_cartesian, goal_topic, nh, max_cartesian_vel, max_joint_vel));
         goal=goal_ros_twist;
       }
       else if(goal_type=="Joints"){
@@ -278,7 +278,7 @@ int main(int argc, char **argv){
           msg+=boost::lexical_cast<std::string>(joints_position[k])+" ";
         }
         ROS_INFO("            Desired Joints Position: %s", msg.c_str());
-        GoalJointsPositionPtr goal_joint(new GoalJointsPosition(joints_position));
+        GoalJointsPositionPtr goal_joint(new GoalJointsPosition(joints_position, task_mask_joint, max_joint_vel));
         goal=goal_joint;
       }
       else if(goal_type=="JointsROS"){
@@ -313,7 +313,7 @@ int main(int argc, char **argv){
           max_force=0;
           set_zero_srv="";
         }
-        GoalGraspPtr goal_ros_pose(new GoalGrasp(chains[chain_id[task_chain]], task_mask_cartesian, goal_topic, nh, chain_joint_relations[chain_id[task_chain]], max_cartesian_vel, arm_joint_state_topic, arm_joint_command_topic, force_sensor, force_sensor_topic, max_force, set_zero_srv));
+        GoalGraspPtr goal_ros_pose(new GoalGrasp(chains[chain_id[task_chain]], task_mask_cartesian, goal_topic, nh, chain_joint_relations[chain_id[task_chain]], max_cartesian_vel, max_joint_vel, arm_joint_state_topic, arm_joint_command_topic, force_sensor, force_sensor_topic, max_force, set_zero_srv));
         goal=goal_ros_pose;
       }
       else{
@@ -326,14 +326,14 @@ int main(int argc, char **argv){
       tasks.push_back(task);
 
     }
-  MultiTaskPtr multi(new MultiTask(tasks, chains, chain_joint_relations, joint_priority, multitask_priority[i]));
+  MultiTaskPtr multi(new MultiTask(tasks, chains, chain_joint_relations, joint_priority, max_joint_vel, multitask_priority[i]));
   multitasks.push_back(multi);
   }
 
 
 
 
-  ControllerPtr controller(new Controller(multitasks, n_joints, max_joint_limit, min_joint_limit, max_cartesian_limits, min_cartesian_limits, acceleration, max_joint_vel, sampling_duration, nh, arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic, chains, chain_joint_relations, simulation, p_values, i_values, d_values));
+  ControllerPtr controller(new Controller(multitasks, n_joints, max_joint_limit, min_joint_limit, max_cartesian_limits, min_cartesian_limits, max_cartesian_vel, acceleration, max_joint_vel, sampling_duration, nh, arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic, chains, chain_joint_relations, simulation, p_values, i_values, d_values));
   controller->goToGoal();
 
 

@@ -67,6 +67,7 @@ CartesianJacobian::CartesianJacobian(const KDL::Chain &chain, int n_joints, std:
 CartesianJacobian::~CartesianJacobian(){}
 
 bool CartesianJacobian::calculateJac(std::vector<float> joints){
+
   KDL::JntArray q(chain_odom_.getNrOfJoints());
   if(frame_inertial_){
     for(int i=0; i<odom_.size(); i++){
@@ -157,6 +158,7 @@ bool JointJacobian::calculateJac(std::vector<float> joints){
   Eigen::MatrixXd jacobian(n_joints_, n_joints_);
   jacobian=Eigen::MatrixXd::Identity(n_joints_, n_joints_);
   Eigen::MatrixXd jacobian_no_mask=jacobian;
+
   if(mask_joint_.size()==jacobian.cols()){
     for(int j=0; j<mask_joint_.size(); j++){
       if(mask_joint_[j]==0){
@@ -166,6 +168,7 @@ bool JointJacobian::calculateJac(std::vector<float> joints){
       }
     }
   }
+
 
   setJac(jacobian);
   setJacNoMask(jacobian_no_mask);

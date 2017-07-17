@@ -35,5 +35,6 @@ Eigen::MatrixXd CartesianTaskVelocity::calculateCartesianVelocity(Eigen::MatrixX
 }
 
 Eigen::MatrixXd CartesianTaskVelocity::calculateJointVelocity(Eigen::MatrixXd current, Eigen::MatrixXd goal){
-  return goal-current;
+
+  return (goal-current);
 }

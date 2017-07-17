@@ -53,7 +53,7 @@ auv/min_cartesian_limit: [-20,-20,-20, -6.28, -6.28, -6.28]
 
 
 
-multitask_priority: [grasp_multi]
+multitask_priority: [fixed_multi]
 
 
 

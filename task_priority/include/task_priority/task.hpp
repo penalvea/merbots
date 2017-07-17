@@ -55,6 +55,7 @@ class MultiTask{
   Eigen::MatrixXd J_k_;
   Eigen::MatrixXd J_null_inv_;
   Eigen::MatrixXd J_k_no_mask_;
+  Eigen::MatrixXd J_k_task_;
   std::vector<float> odom_;
   float max_vel_;
   std::vector<KDL::Chain> chains_;
@@ -62,13 +63,14 @@ class MultiTask{
   std::vector<std::vector<float> > max_positive_cartesian_vel_, max_negative_cartesian_vel_;
   std::vector<std::vector<int> > joints_priority_;
   std::string name_;
+  float max_joint_vel_;
 
 
 
   Eigen::MatrixXd pinvMat(Eigen::MatrixXd matrix);
 
 public:
-  MultiTask( std::vector<TaskPtr> tasks, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, std::vector<std::vector<int> > joints_priority, std::string name);
+  MultiTask( std::vector<TaskPtr> tasks, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, std::vector<std::vector<int> > joints_priority, float max_joint_vel, std::string name);
   ~MultiTask();
   Eigen::MatrixXd getJacobian();
   std::vector<float> calculateCartesianVelocity();
@@ -85,13 +87,20 @@ public:
   bool isActive();
   void setCurrentJoints(std::vector<float> joints);
   Eigen::MatrixXd calculateJointsVel(Eigen::MatrixXd error, std::vector<int> joints_active);
+  Eigen::MatrixXd calculateJointsVelNoNull(Eigen::MatrixXd error, std::vector<int> joints_active);
   Eigen::MatrixXd calculateError(Eigen::MatrixXd last_vel);
   Eigen::MatrixXd calculateMultiTaskVel(Eigen::MatrixXd last_vel, Eigen::MatrixXd T_k_complete);
   void setOdom(std::vector<float> odom);
   Eigen::MatrixXd getT_k_complete();
   Eigen::MatrixXd limitJointsAndCartesian(Eigen::MatrixXd vels);
+  Eigen::MatrixXd limitJointsAndCartesianNoNull(Eigen::MatrixXd vels);
+  Eigen::MatrixXd limitJoints(Eigen::MatrixXd vels);
+  Eigen::MatrixXd limitJointsTask(Eigen::MatrixXd vels);
+  Eigen::MatrixXd limitCartesian(Eigen::MatrixXd vels);
   bool goalsInitialized();
+  Eigen::MatrixXd limitVels(Eigen::MatrixXd vels);
   task_priority::MultiTask_msg getMsg(Eigen::MatrixXd vels);
+  Eigen::MatrixXd nextVelModified(Eigen::MatrixXd last_vel, Eigen::MatrixXd error);
 };
 
 typedef boost::shared_ptr<MultiTask> MultiTaskPtr;

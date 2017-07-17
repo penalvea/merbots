@@ -3,13 +3,14 @@
 
 
 
-Controller::Controller(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, bool simulation, std::vector<float> p_values, std::vector<float> i_values, std::vector<float> d_values){
+Controller::Controller(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float max_cartesian_vel, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, bool simulation, std::vector<float> p_values, std::vector<float> i_values, std::vector<float> d_values){
 multitasks_=multitasks;
 n_joints_=n_joints;
 max_joint_limit_=max_joint_limit;
 min_joint_limit_=min_joint_limit;
 max_cartesian_limits_=max_cartesian_limits;
 min_cartesian_limits_=min_cartesian_limits;
+max_cartesian_vel_=max_cartesian_vel;
 acceleration_=acceleration;
 max_joint_vel_=max_joint_vel;
 sampling_duration_=sampling_duration;
@@ -27,7 +28,7 @@ simulation_=simulation;
 
 ///////////////////PI Controller/////////////////////
 
-pi_controller_.reset(new PIController(p_values, i_values, d_values));
+//pi_controller_.reset(new PIController(p_values, i_values, d_values));
 
 
 //////////////////////////////////77
@@ -96,6 +97,18 @@ float Controller::calculateMaxNegativeVel(float difference, float acceleration, 
 }
 
 Eigen::Vector3d Controller::quaternionsSubstraction(Eigen::Quaterniond quat_desired, Eigen::Quaterniond quat_current){
+  if(quat_current.w()<0){
+    quat_current.x()=-1*quat_current.x();
+    quat_current.y()=-1*quat_current.y();
+    quat_current.z()=-1*quat_current.z();
+    quat_current.w()=-1*quat_current.w();
+  }
+  if(quat_desired.w()<0){
+      quat_desired.x()=-1*quat_current.x();
+      quat_desired.y()=-1*quat_current.y();
+      quat_desired.z()=-1*quat_current.z();
+      quat_desired.w()=-1*quat_current.w();
+    }
   Eigen::Vector3d v1(quat_desired.x(), quat_desired.y(), quat_desired.z());
   Eigen::Vector3d v1_aux(quat_desired.x(), quat_desired.y(), quat_desired.z());
   Eigen::Vector3d v2(quat_current.x(), quat_current.y(), quat_current.z());
@@ -138,30 +151,30 @@ void Controller::goToGoal(){
       tf::StampedTransform transform;
       listener.lookupTransform(world_tf_, vehicle_tf_, ros::Time(0), transform);
       Eigen::Quaterniond odom_rotation(transform.getRotation().w(), transform.getRotation().x(), transform.getRotation().y(), transform.getRotation().z());
-      Eigen::Vector3d odom_euler=odom_rotation.toRotationMatrix().eulerAngles(0,1,2);
+      Eigen::Vector3d odom_euler=odom_rotation.toRotationMatrix().eulerAngles(2,1,0);
       std::vector<float> odom(6,0);
       odom[0]=transform.getOrigin().x();
       odom[1]=transform.getOrigin().y();
       odom[2]=transform.getOrigin().z();
-      odom[3]=odom_euler[0];
+      odom[3]=odom_euler[2];
       odom[4]=odom_euler[1];
-      odom[5]=odom_euler[2];
+      odom[5]=odom_euler[0];
 
 
       //Dina
-      tf::Matrix3x3 mat_odom(transform.getRotation());
+      /*tf::Matrix3x3 mat_odom(transform.getRotation());
       double roll_d, pitch_d, yaw_d;
       mat_odom.getRPY(roll_d, pitch_d, yaw_d);
 
       odom[3]=roll_d;
       odom[4]=pitch_d;
-      odom[5]=yaw_d;
+      odom[5]=yaw_d;*/
 
 
       ////////////////////////////PI Controller//////////////7777777
 
 
-      pi_controller_->updateController(odom, current_joints_, ros::Time::now());
+      //pi_controller_->updateController(odom, current_joints_, ros::Time::now());
 
       //////////////////////////////////////
 
@@ -181,6 +194,7 @@ void Controller::goToGoal(){
       vels.setZero();
 
       for(int i=multitasks_.size()-1; i>=0; i--){
+        std::cout<<"Multitask "<<i<<std::endl;
         multitasks_[i]->setCurrentJoints(current_joints_);
         multitasks_[i]->setOdom(odom);
 
@@ -189,6 +203,7 @@ void Controller::goToGoal(){
         multitasks_[i]->setMaxNegativeJointVelocity(max_negative_joint_velocities);
         multitasks_[i]->setMaxPositiveCartesianVelocity(max_positive_cartesian_velocities);
         multitasks_[i]->setMaxNegativeCartesianVelocity(max_negative_cartesian_velocities);
+
         vels=multitasks_[i]->calculateMultiTaskVel(vels, T_k_complete);
         T_k_complete=multitasks_[i]->getT_k_complete();
       }
@@ -205,7 +220,7 @@ void Controller::goToGoal(){
      // std::cout<<"old vel"<<std::endl;
       //std::cout<<vels<<std::endl;
 
-      vels=pi_controller_->getVels(vels, ros::Time::now());
+      //vels=pi_controller_->getVels(vels, ros::Time::now());
 
      // std::cout<<vels<<std::endl;
       //std::cout<<"---------"<<std::endl;
@@ -213,7 +228,8 @@ void Controller::goToGoal(){
       //////////////////////////////////////
 
 
-      //std::cout<<vels<<std::endl;
+      std::cout<<vels<<std::endl;
+
       publishVels(vels);
       //std::cout<<"despues publish"<<std::endl;
 
@@ -248,6 +264,7 @@ Eigen::MatrixXd Controller::limitVels(Eigen::MatrixXd vels){
 }
 
 void Controller::publishVels(Eigen::MatrixXd vels){
+
   nav_msgs::Odometry odom_msg;
 
   odom_msg.pose.pose.position.x=0.0;
@@ -299,7 +316,7 @@ void Controller::publishVels(Eigen::MatrixXd vels){
   joint_msg.name.push_back("JawOpening");
 
   if(simulation_){
-    for(int i=4; i<8; i++){
+    for(int i=4; i<7; i++){
       joint_msg.velocity.push_back(vels(i,0));
     }
   }
@@ -357,9 +374,9 @@ std::vector<std::vector<std::vector<float> > > Controller::calculateMaxCartesian
     frame.M.GetQuaternion(x_a, y_a, z_a, w_a);
     //std::cout<<x_a<<" "<<y_a<<" "<<z_a<<" "<<w_a<<std::endl;
 
-    max_negative_cartesian_vel.push_back(calculateMaxNegativeVel(frame.p.x(), min_cartesian_limits_[i][0], acceleration_, sampling_duration_));
-    max_negative_cartesian_vel.push_back(calculateMaxNegativeVel(frame.p.y(), min_cartesian_limits_[i][1], acceleration_, sampling_duration_));
-    max_negative_cartesian_vel.push_back(calculateMaxNegativeVel(frame.p.z(), min_cartesian_limits_[i][2], acceleration_, sampling_duration_));
+    max_negative_cartesian_vel.push_back(std::max(calculateMaxNegativeVel(frame.p.x(), min_cartesian_limits_[i][0], acceleration_, sampling_duration_), -max_cartesian_vel_));
+    max_negative_cartesian_vel.push_back(std::max(calculateMaxNegativeVel(frame.p.y(), min_cartesian_limits_[i][1], acceleration_, sampling_duration_), -max_cartesian_vel_));
+    max_negative_cartesian_vel.push_back(std::max(calculateMaxNegativeVel(frame.p.z(), min_cartesian_limits_[i][2], acceleration_, sampling_duration_), -max_cartesian_vel_));
 
 
     double q_x, q_y, q_z, q_w;
@@ -400,28 +417,28 @@ std::vector<std::vector<std::vector<float> > > Controller::calculateMaxCartesian
     //std::cout<<"current_rotation"<<rot_dif<<std::endl;
 
     if(min_cartesian_limits_[i][3]<-6.28){
-      max_negative_cartesian_vel.push_back(-1);
+      max_negative_cartesian_vel.push_back(-max_cartesian_vel_);
     }
     else{
-      max_negative_cartesian_vel.push_back(calculateMaxNegativeVel(rot_dif[0], acceleration_, sampling_duration_));
+      max_negative_cartesian_vel.push_back(std::max(calculateMaxNegativeVel(rot_dif[0], acceleration_, sampling_duration_), -max_cartesian_vel_));
     }
     if(min_cartesian_limits_[i][4]<-6.28){
-      max_negative_cartesian_vel.push_back(-1);
+      max_negative_cartesian_vel.push_back(-max_cartesian_vel_);
     }
     else{
-      max_negative_cartesian_vel.push_back(calculateMaxNegativeVel(rot_dif[1], acceleration_, sampling_duration_));
+      max_negative_cartesian_vel.push_back(std::max(calculateMaxNegativeVel(rot_dif[1], acceleration_, sampling_duration_), -max_cartesian_vel_));
     }
     if(min_cartesian_limits_[i][5]<-6.28){
-     max_negative_cartesian_vel.push_back(-1);
+     max_negative_cartesian_vel.push_back(-max_cartesian_vel_);
     }
     else{
-      max_negative_cartesian_vel.push_back(calculateMaxNegativeVel(rot_dif[2], acceleration_, sampling_duration_));
+      max_negative_cartesian_vel.push_back(std::max(calculateMaxNegativeVel(rot_dif[2], acceleration_, sampling_duration_), -max_cartesian_vel_));
     }
     max_negative_cartesian_vels.push_back(max_negative_cartesian_vel);
 
-    max_positive_cartesian_vel.push_back(calculateMaxPositiveVel(frame.p.x(), max_cartesian_limits_[i][0], acceleration_, sampling_duration_));
-    max_positive_cartesian_vel.push_back(calculateMaxPositiveVel(frame.p.y(), max_cartesian_limits_[i][1], acceleration_, sampling_duration_));
-    max_positive_cartesian_vel.push_back(calculateMaxPositiveVel(frame.p.z(), max_cartesian_limits_[i][2], acceleration_, sampling_duration_));
+    max_positive_cartesian_vel.push_back(std::min(calculateMaxPositiveVel(frame.p.x(), max_cartesian_limits_[i][0], acceleration_, sampling_duration_),max_cartesian_vel_));
+    max_positive_cartesian_vel.push_back(std::min(calculateMaxPositiveVel(frame.p.y(), max_cartesian_limits_[i][1], acceleration_, sampling_duration_), max_cartesian_vel_));
+    max_positive_cartesian_vel.push_back(std::min(calculateMaxPositiveVel(frame.p.z(), max_cartesian_limits_[i][2], acceleration_, sampling_duration_), max_cartesian_vel_));
 
     Eigen::Matrix3d max_cartesian_mat;
     double max_x, max_y, max_z;
@@ -458,22 +475,22 @@ std::vector<std::vector<std::vector<float> > > Controller::calculateMaxCartesian
     //std::cout<<"current_rotation"<<rot_dif<<std::endl;
 
     if(max_cartesian_limits_[i][3]>6.28){
-      max_positive_cartesian_vel.push_back(1);
+      max_positive_cartesian_vel.push_back(max_cartesian_vel_);
     }
     else{
-      max_positive_cartesian_vel.push_back(calculateMaxPositiveVel(rot_dif[0], acceleration_, sampling_duration_));
+      max_positive_cartesian_vel.push_back(std::min(calculateMaxPositiveVel(rot_dif[0], acceleration_, sampling_duration_),max_cartesian_vel_));
     }
     if(max_cartesian_limits_[i][4]>6.28){
-      max_positive_cartesian_vel.push_back(1);
+      max_positive_cartesian_vel.push_back(max_cartesian_vel_);
     }
     else{
-      max_positive_cartesian_vel.push_back(calculateMaxPositiveVel(rot_dif[1], acceleration_, sampling_duration_));
+      max_positive_cartesian_vel.push_back(std::min(calculateMaxPositiveVel(rot_dif[1], acceleration_, sampling_duration_), max_cartesian_vel_));
     }
     if(max_cartesian_limits_[i][5]>6.28){
-     max_positive_cartesian_vel.push_back(1);
+     max_positive_cartesian_vel.push_back(max_cartesian_vel_);
     }
     else{
-      max_positive_cartesian_vel.push_back(calculateMaxPositiveVel(rot_dif[2], acceleration_, sampling_duration_));
+      max_positive_cartesian_vel.push_back(std::min(calculateMaxPositiveVel(rot_dif[2], acceleration_, sampling_duration_), max_cartesian_vel_));
     }
     max_positive_cartesian_vels.push_back(max_positive_cartesian_vel);
 

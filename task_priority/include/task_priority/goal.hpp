@@ -23,6 +23,7 @@
 class Goal{
   bool initialized_;
   float max_cartesian_vel_;
+  float max_joint_vel_;
   Eigen::MatrixXd cartesian_offset_;
 public:
   Goal();
@@ -33,7 +34,9 @@ public:
   void setInitialized(bool initialized);
   bool getInitialized();
   void setMaxCartesianVel(float max_cartesian_vel);
-  Eigen::MatrixXd limitCaresianVel(Eigen::MatrixXd vels);
+  void setMaxJointVel(float max_joint_vel);
+  Eigen::MatrixXd limitCartesianVel(Eigen::MatrixXd vels);
+  Eigen::MatrixXd limitJointVel(Eigen::MatrixXd vels);
   void incrementOffset(Eigen::MatrixXd cartesian_offset);
   Eigen::MatrixXd getCartesianOffset();
 };
@@ -47,7 +50,7 @@ class GoalFixedPose: public Goal{
   std::vector<int> joints_relation_;
   Eigen::MatrixXd last_cartesian_vel_;
 public:
-  GoalFixedPose(Eigen::MatrixXd goal, KDL::Chain chain, std::vector<int> mask_cart, std::vector<int> joints_relation, float max_cartesian_vel);
+  GoalFixedPose(Eigen::MatrixXd goal, KDL::Chain chain, std::vector<int> mask_cart, std::vector<int> joints_relation, float max_cartesian_vel, float max_joint_vel);
   ~GoalFixedPose();
   Eigen::MatrixXd getGoal(std::vector<float> joints, std::vector<float> odom);
   task_priority::Error_msg getMsg(Eigen::MatrixXd vels, std::vector<int> mask);
@@ -65,7 +68,7 @@ class GoalROSPose: public Goal{
    Eigen::MatrixXd last_cartesian_vel_;
   void poseCallback(const geometry_msgs::Pose::ConstPtr& msg);
 public:
-  GoalROSPose(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel);
+  GoalROSPose(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel, float max_joint_vel);
   ~GoalROSPose();
   Eigen::MatrixXd getGoal(std::vector<float> joints, std::vector<float> odom);
   task_priority::Error_msg getMsg(Eigen::MatrixXd vels, std::vector<int> mask);
@@ -82,7 +85,7 @@ class GoalROSTwist: public Goal{
   Eigen::MatrixXd last_cartesian_vel_;
   void twistCallback(const geometry_msgs::Twist::ConstPtr& msg);
 public:
-  GoalROSTwist(std::vector<int> mask_cart, std::string twist_topic, ros::NodeHandle &nh, float max_cartesian_vel);
+  GoalROSTwist(std::vector<int> mask_cart, std::string twist_topic, ros::NodeHandle &nh, float max_cartesian_vel, float max_joint_vel);
   ~GoalROSTwist();
   Eigen::MatrixXd getGoal(std::vector<float> joints, std::vector<float> odom);
   task_priority::Error_msg getMsg(Eigen::MatrixXd vels, std::vector<int> mask);
@@ -90,10 +93,11 @@ public:
 typedef boost::shared_ptr<GoalROSTwist> GoalROSTwistPtr;
 
 class GoalJointsPosition: public Goal{
+  std::vector<int> mask_joint_;
   std::vector<float> joints_position_;
    Eigen::MatrixXd last_joint_vel_;
 public:
-  GoalJointsPosition(std::vector<float> joints_position);
+  GoalJointsPosition(std::vector<float> joints_position, std::vector<int> mask_joint, float max_joint_vel);
   ~GoalJointsPosition();
   Eigen::MatrixXd getGoal(std::vector<float> joints, std::vector<float> odom);
   task_priority::Error_msg getMsg(Eigen::MatrixXd vels, std::vector<int> mask);
@@ -128,7 +132,7 @@ class GoalGrasp: public Goal{
   void poseCallback(const geometry_msgs::Pose::ConstPtr& msg);
   void forceCallback(const geometry_msgs::WrenchStamped::ConstPtr& msg);
 public:
-  GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel, std::string joint_state_topic, std::string command_joint_topic, bool force_sensor, std::string force_sensor_topic, float max_force, std::string force_set_zero);
+  GoalGrasp(KDL::Chain chain, std::vector<int> mask_cart, std::string pose_topic, ros::NodeHandle &nh, std::vector<int> joints_relation, float max_cartesian_vel, float max_joint_vel, std::string joint_state_topic, std::string command_joint_topic, bool force_sensor, std::string force_sensor_topic, float max_force, std::string force_set_zero);
   ~GoalGrasp();
   Eigen::MatrixXd getGoal(std::vector<float> joints, std::vector<float> odom);
   task_priority::Error_msg getMsg(Eigen::MatrixXd vels, std::vector<int> mask);
