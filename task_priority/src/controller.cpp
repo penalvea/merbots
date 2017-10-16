@@ -1,5 +1,6 @@
 #include <task_priority/controller.hpp>
 #include <task_priority/TaskPriority_msg.h>
+#include <task_priority/HardConstraints_msg.h>
 
 
 
@@ -8,6 +9,7 @@ multitasks_=multitasks;
 n_joints_=n_joints;
 max_joint_limit_=max_joint_limit;
 min_joint_limit_=min_joint_limit;
+std::cout<<"Max Joint limit"<<std::endl;
 max_cartesian_limits_=max_cartesian_limits;
 min_cartesian_limits_=min_cartesian_limits;
 max_cartesian_vel_=max_cartesian_vel;
@@ -39,11 +41,19 @@ simulation_=simulation;
 joints_sub_=nh_.subscribe<sensor_msgs::JointState>(arm_joint_state_topic, 1, &Controller::jointsCallback, this);
 joints_pub_=nh_.advertise<sensor_msgs::JointState>(arm_joint_command_topic,1);
 
-if(simulation)
+if(simulation){
   vehicle_pub_=nh_.advertise<nav_msgs::Odometry>(vehicle_command_topic, 1);
+
+}
 else
   vehicle_pub_=nh_.advertise<auv_msgs::BodyVelocityReq>(vehicle_command_topic, 1);
+
+effector_twist_=nh_.advertise<geometry_msgs::TwistStamped>("/task_priority/effector_twist", 1);
+vehicle_twist_=nh_.advertise<geometry_msgs::TwistStamped>("/task_priority/vehicle_twist", 1);
+effector_pose_=nh_.advertise<geometry_msgs::PoseStamped>("/task_priority/effector_pose", 1);
+vehicle_pose_=nh_.advertise<geometry_msgs::PoseStamped>("/task_priority/vehicle_pose", 1);
 status_pub_=nh_.advertise<task_priority::TaskPriority_msg>("/task_priority/status", 1);
+constraints_pub_=nh_.advertise<task_priority::HardConstraints_msg>("/task_priority/hard_constraints", 1);
 }
 
 Controller::~Controller(){}
@@ -75,25 +85,25 @@ void Controller::jointsCallback(const sensor_msgs::JointStateConstPtr &msg){
 float Controller::calculateMaxPositiveVel(float current_joint, float max_joint_value, float acceleration, float sampling_duration){
   if(current_joint>max_joint_value)
     return 0.0;
-  return std::max(std::min((max_joint_value-current_joint)/sampling_duration, std::sqrt(2*acceleration*(max_joint_value-current_joint))),(float)0.0);
+  return std::max(std::min((max_joint_value-current_joint)/sampling_duration/5, std::sqrt(2*acceleration*(max_joint_value-current_joint))),(float)0.0);
 }
 
 float Controller::calculateMaxNegativeVel(float current_joint, float min_joint_value, float acceleration, float sampling_duration){
   if(current_joint<min_joint_value)
     return 0.0;
-  return std::min(std::max((min_joint_value-current_joint)/sampling_duration, -std::sqrt(2*acceleration*(current_joint-min_joint_value))),(float)0.0);
+  return std::min(std::max((min_joint_value-current_joint)/sampling_duration/5, -std::sqrt(2*acceleration*(current_joint-min_joint_value))),(float)0.0);
 }
 
 float Controller::calculateMaxPositiveVel(float difference, float acceleration, float sampling_duration){
   if(difference<0)
     return 0.0;
-  return std::max(std::min(difference/sampling_duration, std::sqrt(2*acceleration*difference)),(float)0.0);
+  return std::max(std::min(difference/sampling_duration/5, std::sqrt(2*acceleration*difference)),(float)0.0);
 }
 
 float Controller::calculateMaxNegativeVel(float difference, float acceleration, float sampling_duration){
   if(difference>0)
     return 0.0;
-  return std::min(std::max(difference/sampling_duration, -std::sqrt(2*acceleration*(-difference))),(float)0.0);
+  return std::min(std::max(difference/sampling_duration/5, -std::sqrt(2*acceleration*(-difference))),(float)0.0);
 }
 
 Eigen::Vector3d Controller::quaternionsSubstraction(Eigen::Quaterniond quat_desired, Eigen::Quaterniond quat_current){
@@ -182,6 +192,7 @@ void Controller::goToGoal(){
       std::vector<float> max_positive_joint_velocities, max_negative_joint_velocities;
       for(int i=0; i<n_joints_; i++){
         max_positive_joint_velocities.push_back(calculateMaxPositiveVel(current_joints_[i], max_joint_limit_[i], acceleration_, sampling_duration_));
+        //std::cout<< i<<"     "<<current_joints_[i]<<"    "<<max_joint_limit_[i]<<"    "<<max_positive_joint_velocities[i]<<std::endl;
         max_negative_joint_velocities.push_back(calculateMaxNegativeVel(current_joints_[i], min_joint_limit_[i], acceleration_, sampling_duration_));
         //std::cout<<max_positive_joint_velocities[i]<<"-----    "<<max_negative_joint_velocities[i]<<std::endl;
       }
@@ -194,7 +205,7 @@ void Controller::goToGoal(){
       vels.setZero();
 
       for(int i=multitasks_.size()-1; i>=0; i--){
-        std::cout<<"Multitask "<<i<<std::endl;
+        //std::cout<<"Multitask "<<i<<std::endl;
         multitasks_[i]->setCurrentJoints(current_joints_);
         multitasks_[i]->setOdom(odom);
 
@@ -228,12 +239,14 @@ void Controller::goToGoal(){
       //////////////////////////////////////
 
 
-      std::cout<<vels<<std::endl;
+      //std::cout<<vels<<std::endl;
 
       publishVels(vels);
       //std::cout<<"despues publish"<<std::endl;
 
-
+      publishTwist(vels, odom);
+      publishPose(odom);
+      publishConstraints();
 
 
 
@@ -241,7 +254,7 @@ void Controller::goToGoal(){
     }
     catch(tf::TransformException ex){
       ROS_ERROR("%s\n", ex.what());
-      ros::Duration(sampling_duration_).sleep();
+      ros::Duration(sampling_duration_/10).sleep();
     }
     ros::Duration(sampling_duration_).sleep();
   }
@@ -334,6 +347,7 @@ void Controller::publishVels(Eigen::MatrixXd vels){
     vehicle_pub_.publish(vehicle_msg);
   joints_pub_.publish(joint_msg);
   publishStatus(vels);
+
   ros::spinOnce();
 }
 
@@ -512,4 +526,130 @@ void Controller::publishStatus(Eigen::MatrixXd vels){
   status_pub_.publish(msg);
 
 }
+void Controller::publishTwist(Eigen::MatrixXd vels, std::vector<float> odom){
 
+  for(int i=0; i<chains_.size(); i++){
+    Eigen::MatrixXd jac_cartesian(6, vels.rows());
+    jac_cartesian.setZero();
+    KDL::Chain chain_odom;
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransY)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransZ)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotX)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotY)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ)));
+    chain_odom.addChain(chains_[i]);
+    KDL::ChainJntToJacSolver jac_sovler(chain_odom);
+
+    KDL::JntArray q(chain_odom.getNrOfJoints());
+
+    for(int j=0; j<odom.size(); j++){
+      q(j)=odom[j];
+    }
+
+    for(int j=0; j<chains_[i].getNrOfJoints(); j++){
+      q(j+odom.size())=current_joints_[chain_joint_relations_[i][j]];
+    }
+
+    KDL::Jacobian jac_chain(chain_odom.getNrOfJoints());
+    jac_sovler.JntToJac(q, jac_chain);
+
+    for(int j=0; j<chain_joint_relations_[i].size(); j++){
+     jac_cartesian(0,chain_joint_relations_[i][j])=jac_chain(0, j+odom.size());
+     jac_cartesian(1,chain_joint_relations_[i][j])=jac_chain(1, j+odom.size());
+     jac_cartesian(2,chain_joint_relations_[i][j])=jac_chain(2, j+odom.size());
+     jac_cartesian(3,chain_joint_relations_[i][j])=jac_chain(3, j+odom.size());
+     jac_cartesian(4,chain_joint_relations_[i][j])=jac_chain(4, j+odom.size());
+     jac_cartesian(5,chain_joint_relations_[i][j])=jac_chain(5, j+odom.size());
+    }
+
+    Eigen::MatrixXd cartesian_vel=jac_cartesian*vels;
+
+    geometry_msgs::TwistStamped twist;
+    twist.header.stamp=ros::Time::now();
+    twist.twist.linear.x=cartesian_vel(0,0);
+    twist.twist.linear.y=cartesian_vel(1,0);
+    twist.twist.linear.z=cartesian_vel(2,0);
+    twist.twist.angular.x=cartesian_vel(3,0);
+    twist.twist.angular.x=cartesian_vel(4,0);
+    twist.twist.angular.x=cartesian_vel(5,0);
+    if(i==0){
+      effector_twist_.publish(twist);
+    }
+    else{
+      vehicle_twist_.publish(twist);
+    }
+
+  }
+}
+
+void Controller::publishPose(std::vector<float> odom){
+  for(int i=0; i<chains_.size(); i++){
+    KDL::Chain chain_odom;
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransY)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransZ)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotX)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotY)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ)));
+    chain_odom.addChain(chains_[i]);
+    KDL::ChainFkSolverPos_recursive fk(chain_odom);
+
+    KDL::JntArray q(chain_odom.getNrOfJoints());
+    for(int j=0; j<odom.size(); j++){
+      q(j)=odom[j];
+
+    }
+    for(int j=0; j<chains_[i].getNrOfJoints(); j++){
+      q(j+odom.size())=current_joints_[chain_joint_relations_[i][j]];
+    }
+
+    KDL::Frame frame;
+    fk.JntToCart(q, frame);
+
+    double x_a, y_a, z_a, w_a;
+    frame.M.GetQuaternion(x_a, y_a, z_a, w_a);
+
+    geometry_msgs::PoseStamped pose;
+    pose.header.stamp=ros::Time::now();
+    pose.pose.position.x=frame.p.x();
+    pose.pose.position.y=frame.p.y();
+    pose.pose.position.z=frame.p.z();
+    pose.pose.orientation.x=x_a;
+    pose.pose.orientation.y=y_a;
+    pose.pose.orientation.z=z_a;
+    pose.pose.orientation.w=w_a;
+
+    if(i==0){
+      effector_pose_.publish(pose);
+    }
+    else{
+      vehicle_pose_.publish(pose);
+    }
+
+  }
+}
+void Controller::publishConstraints(){
+  task_priority::HardConstraints_msg constraint;
+  for(int i=0; i<max_joint_limit_.size(); i++){
+    task_priority::JointConstraint_msg joint_con;
+    joint_con.joint=i;
+    joint_con.max=max_joint_limit_[i];
+    joint_con.min=min_joint_limit_[i];
+    constraint.joints.push_back(joint_con);
+  }
+  for(int i=0; i<chains_.size(); i++){
+    for(int j=0; j<6; j++){
+      task_priority::CartesianConstraint_msg cart_con;
+      cart_con.kinematic_chain=i;
+      cart_con.axis=j;
+      cart_con.max=max_cartesian_limits_[i][j];
+      cart_con.min=min_cartesian_limits_[i][j];
+      constraint.cartesian.push_back(cart_con);
+    }
+  }
+  constraint.max_joint_velocity=max_joint_vel_;
+  constraint.max_cartesian_velocity=max_cartesian_vel_;
+
+  constraints_pub_.publish(constraint);
+}

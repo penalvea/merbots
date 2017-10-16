@@ -18,6 +18,9 @@ TaskPriority_msg.msg
 Task_msg.msg
 MultiTask_msg.msg
 Error_msg.msg
+HardConstraints_msg.msg
+CartesianConstraint_msg.msg
+JointConstraint_msg.msg
 )
 
 generate_messages(
@@ -65,6 +68,12 @@ add_library(${PROJECT_NAME}
 
 add_executable(multi_task_priority src/main.cpp)
 target_link_libraries(multi_task_priority
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+)
+
+add_executable(listener src/listener.cpp)
+target_link_libraries(listener
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )

@@ -10,6 +10,8 @@
 #include <geometry_msgs/Wrench.h>
 #include <std_srvs/Empty.h>
 #include "task_priority/pi_controller.hpp"
+#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/PoseStamped.h>
 
 
 class Controller{
@@ -23,7 +25,7 @@ class Controller{
   float max_joint_vel_;
   float sampling_duration_;
   ros::NodeHandle nh_;
-  ros::Publisher joints_pub_, vehicle_pub_, status_pub_;
+  ros::Publisher joints_pub_, vehicle_pub_, status_pub_, effector_twist_, vehicle_twist_, effector_pose_, vehicle_pose_, constraints_pub_;
   ros::Subscriber joints_sub_;
   tf::TransformListener listener;
   std::vector<float> current_joints_;
@@ -46,6 +48,9 @@ class Controller{
   Eigen::Vector3d quaternionsSubstraction(Eigen::Quaterniond quat_desired, Eigen::Quaterniond quat_current);
   std::vector<std::vector<std::vector<float> > > calculateMaxCartesianVels(std::vector<float> joints, std::vector<float> odom);
   void publishStatus(Eigen::MatrixXd vels);
+  void publishTwist(Eigen::MatrixXd vels, std::vector<float> odom);
+  void publishPose( std::vector<float> odom);
+  void publishConstraints();
 public:
   Controller(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float max_cartesian_vel, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, bool simulation, std::vector<float> p_values, std::vector<float> i_values, std::vector<float> d_values);
   ~Controller();
