@@ -1,0 +1,6 @@
+<launch>
+        <rosparam command="load" file="$(find task_priority)/launch/icra_02.yaml" />
+
+        <node name="multi_task_priority" pkg="task_priority" type="multi_task_priority" output="screen" respawn="false"/>
+ 
+</launch>
