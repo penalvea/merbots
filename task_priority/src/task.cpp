@@ -30,16 +30,18 @@ bool Task::isActive(){
 
 
 Eigen::MatrixXd Task::calculateCartesianError(Eigen::MatrixXd current_joint_vel, std::vector<float> joints, std::vector<float> odom){
-  /*std::cout<<"current direction****"<<std::endl; */
-  /*std::cout<<jac_->getJacNoMask()*current_joint_vel<<std::endl; */
-  /*std::cout<<"goal---"<<std::endl; */
-  /*std::cout<<goal_->getGoal(joints, odom)<<std::endl; */
-  /*std::cout<<"-----------------"<<std::endl; */
+ /*std::cout<<"Este es el error a  ver que cono passa"<<std::endl;
+  std::cout<<current_joint_vel<<std::endl;
+  std::cout<<"current direction****"<<std::endl;
+  std::cout<<jac_->getJacNoMask()*current_joint_vel<<std::endl;
+  std::cout<<"goal---"<<std::endl;
+  std::cout<<goal_->getGoal(joints, odom)<<std::endl;
+  std::cout<<"-----------------"<<std::endl;*/
 
   Eigen::MatrixXd vel_error=task_velocity_->calculateCartesianVelocity(jac_->getJacNoMask()*current_joint_vel, goal_->getGoal(joints, odom));
-  /*std::cout<<"vel error"<<std::endl; */
-  /*std::cout<<vel_error<<std::endl; */
-  /*std::cout<<"-----------------"<<std::endl; */
+  /*std::cout<<"vel error"<<std::endl;
+  std::cout<<vel_error<<std::endl;
+  std::cout<<"-----------------"<<std::endl;*/
 
   for(int i=0; i<vel_error.rows(); i++){
     if(mask_cartesian_[i]==0){
@@ -302,11 +304,16 @@ Eigen::MatrixXd MultiTask::nextVelModified(Eigen::MatrixXd last_vel, Eigen::Matr
 }
 
 Eigen::MatrixXd MultiTask::calculateMultiTaskVel(Eigen::MatrixXd last_vel, Eigen::MatrixXd T_k_complete){
+  //std::cout<<"Nueva iteracion --------------------------------------------------"<<std::endl;
   Eigen::MatrixXd initial_vel=last_vel;
   ros::spinOnce();
 
   calculateJacobians(T_k_complete);
+
+
   std::vector<int> joints_active(current_joints_.size(),0);
+  //std::cout<<joints_priority_.size()<<std::endl;
+
   for(int i=0; i<joints_priority_.size(); i++){
     //std::cout<<"Task "<<i<<std::endl;
 
@@ -319,7 +326,7 @@ Eigen::MatrixXd MultiTask::calculateMultiTaskVel(Eigen::MatrixXd last_vel, Eigen
 
 
     Eigen::MatrixXd error=calculateError(last_vel);
-   /* std::cout<<"joint Vels for the current task"<<std::endl;
+    /*std::cout<<"joint Vels for the current task"<<std::endl;
     std::cout<<calculateJointsVel(error, joints_active)<<std::endl;
     std::cout<<"direction with this vels"<<std::endl;
     std::cout<<J_k_*calculateJointsVel(error, joints_active)<<std::endl;
@@ -330,8 +337,12 @@ Eigen::MatrixXd MultiTask::calculateMultiTaskVel(Eigen::MatrixXd last_vel, Eigen
 
     //next_vel=limitJointsTask(next_vel);
     //next_vel=limitJoints(next_vel);
+    //std::cout<<"Vels antes de limitar son"<<std::endl;
+    //std::cout<<next_vel<<std::endl;
     next_vel=limitJointsAndCartesian(next_vel);
     //next_vel=limitVels(next_vel);
+    //std::cout<<"Vels despues de limitar son"<<std::endl;
+    //std::cout<<next_vel<<std::endl;
 
 
 
@@ -343,9 +354,10 @@ Eigen::MatrixXd MultiTask::calculateMultiTaskVel(Eigen::MatrixXd last_vel, Eigen
     //sleep(5);
   }
 
-  //std::cout<<"Empezan las novedades --------------------------------------------"<<std::endl;
-  //std::cout<<"La velocidades al terminar la tarea son"<<std::endl;
-  //std::cout<<last_vel<<std::endl;
+
+/*  std::cout<<"Empezan las novedades --------------------------------------------"<<std::endl;
+  std::cout<<"La velocidades al terminar la tarea son"<<std::endl;
+  std::cout<<last_vel<<std::endl;*/
   Eigen::MatrixXd error=calculateError(last_vel);
   /*std::cout<<"Con estas obtenemos un error de"<<std::endl;
   std::cout<<error<<std::endl;
@@ -355,12 +367,12 @@ Eigen::MatrixXd MultiTask::calculateMultiTaskVel(Eigen::MatrixXd last_vel, Eigen
   std::cout<<calculateJointsVelNoNull(error, joints_active)<<std::endl;*/
   Eigen::MatrixXd next_vel=last_vel+calculateJointsVelNoNull(error, joints_active);
 
-  //std::cout<<"Sumando a las velocidades anteriores tenemos"<<std::endl;
-  //std::cout<<next_vel<<std::endl;
+  /*std::cout<<"Sumando a las velocidades anteriores tenemos"<<std::endl;
+  std::cout<<next_vel<<std::endl;*/
 
   next_vel=limitJointsAndCartesianNoNull(next_vel);
-  //std::cout<<"Limitamos las velocidades con no null"<<std::endl;
-  //std::cout<<next_vel<<std::endl;
+ /* std::cout<<"Limitamos las velocidades con no null"<<std::endl;
+  std::cout<<next_vel<<std::endl;*/
 
 
   ////Deactivate multitask in case it cannot be accomplished at all
@@ -368,24 +380,29 @@ Eigen::MatrixXd MultiTask::calculateMultiTaskVel(Eigen::MatrixXd last_vel, Eigen
 
   Eigen::MatrixXd initial_error=calculateError(initial_vel);
   Eigen::MatrixXd current_error=calculateError(next_vel);
-  /*std::cout<<"initial error"<<std::endl; */
-  /*std::cout<<initial_error<<std::endl; */
-  /*std::cout<<"current error"<<std::endl; */
-  /*std::cout<<current_error<<std::endl; */
-  /*std::cout<<"--------------"<<std::endl; */
+  /*std::cout<<"initial error"<<std::endl;
+  std::cout<<initial_error<<std::endl;
+  std::cout<<"current error"<<std::endl;
+  std::cout<<current_error<<std::endl;
+  std::cout<<"--------------"<<std::endl;*/
   bool deactivate=true;
   //std::cout<<"errors accomplished"<<std::endl;
   for(int i=0; i<initial_error.rows(); i++){
-   // std::cout<<std::abs(initial_error(i,0))<<" ---- "<<std::abs(current_error(i,0))<<std::endl;
+    //std::cout<<std::abs(initial_error(i,0))<<" ---- "<<std::abs(current_error(i,0))<<std::endl;
     if(std::abs(initial_error(i,0))-std::abs(current_error(i,0))>0.001){
       deactivate=false;
     }
   }
   Eigen::MatrixXd output_vel;
-  if(deactivate)
+  if(deactivate){
     output_vel=initial_vel;
+  }
+
   else
     output_vel=next_vel;
+
+  //std::cout<<"velocidades al final de la iteracion y que se van a publicar"<<std::endl;
+  //std::cout<<output_vel<<std::endl;
   return output_vel;
 }
 void MultiTask::setOdom(std::vector<float> odom){
@@ -502,7 +519,12 @@ Eigen::MatrixXd MultiTask::limitJointsTask(Eigen::MatrixXd vels){
 
 
 
-Eigen::MatrixXd MultiTask::limitJoints(Eigen::MatrixXd vels){
+
+
+
+
+Eigen::MatrixXd MultiTask::limitJointsAndCartesian(Eigen::MatrixXd vels){
+  Eigen::MatrixXd init_vels=vels;
   Eigen::MatrixXd jac_joint(vels.rows(), vels.rows()), desired_vel_joint(vels.rows(),1);
   jac_joint.setZero();
   for(int i=0; i<vels.rows(); i++){
@@ -510,50 +532,309 @@ Eigen::MatrixXd MultiTask::limitJoints(Eigen::MatrixXd vels){
   }
   desired_vel_joint.setZero();
 
+  Eigen::MatrixXd jac_cartesian(chains_.size()*6, vels.rows()),desired_vel_cartesian(chains_.size()*6,1);
+  jac_cartesian.setZero();
+  desired_vel_cartesian.setZero();
+
+  for(int i=0; i<chains_.size(); i++){
+    KDL::Chain chain_odom;
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransY)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransZ)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotX)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotY)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ)));
+    chain_odom.addChain(chains_[i]);
+    KDL::ChainJntToJacSolver jac_sovler(chain_odom);
+
+    KDL::JntArray q(chain_odom.getNrOfJoints());
+    for(int j=0; j<odom_.size(); j++){
+      q(j)=odom_[j];
+    }
+    for(int j=0; j<chains_[i].getNrOfJoints(); j++){
+      q(j+odom_.size())=current_joints_[chain_joint_relations_[i][j]];
+    }
+
+    KDL::Jacobian jac_chain(chain_odom.getNrOfJoints());
+    jac_sovler.JntToJac(q, jac_chain);
+
+    for(int j=0; j<chain_joint_relations_[i].size(); j++){
+     jac_cartesian(i*6,chain_joint_relations_[i][j])=jac_chain(0, j+odom_.size());
+     jac_cartesian(i*6+1,chain_joint_relations_[i][j])=jac_chain(1, j+odom_.size());
+     jac_cartesian(i*6+2,chain_joint_relations_[i][j])=jac_chain(2, j+odom_.size());
+     jac_cartesian(i*6+3,chain_joint_relations_[i][j])=jac_chain(3, j+odom_.size());
+     jac_cartesian(i*6+4,chain_joint_relations_[i][j])=jac_chain(4, j+odom_.size());
+     jac_cartesian(i*6+5,chain_joint_relations_[i][j])=jac_chain(5, j+odom_.size());
+    }
+  }
+
 
 
   bool finished=false;
+  bool limit_cartesian=false;
+  std::vector<int> active_cartesians(chains_.size()*6,0);
   std::vector<int> active_joints(vels.rows(),0);
-  while(!finished){
+  int iterations=0;
+  while(!finished && iterations<100){
     finished=true;
+    limit_cartesian=false;
 
-    for(int i=0; i<vels.rows(); i++){
-      if(vels(i,0)>max_positive_joint_vel_[i]+0.0001){
-        active_joints[i]=1;
-        desired_vel_joint(i,0)=max_positive_joint_vel_[i]-vels(i,0);
-        finished=false;
-        //std::cout<<"Joint "<<i<<"mayor que max_positive"<<std::endl;
-        //std::cout<<vels(i,0)<<"    ----->  "<<max_positive_joint_vel_[i]<<std::endl;
-      }
-      else if(vels(i,0)<max_negative_joint_vel_[i]-0.0001){
-        active_joints[i]=1;
-        desired_vel_joint(i,0)=max_negative_joint_vel_[i]-vels(i,0);
-        finished=true;
-        //std::cout<<"Joint "<<i<<"menor que max_negative"<<std::endl;
-        //std::cout<<vels(i,0)<<"    ----->  "<<max_negative_joint_vel_[i]<<std::endl;
-      }
-      else if(active_joints[i]==1){
-        desired_vel_joint(i,0)=0;
+
+    Eigen::MatrixXd cartesian_velocity=jac_cartesian*vels;
+    for(int i=0; i<chains_.size(); i++){
+      for(int j=0; j<6; j++){
+          if(cartesian_velocity(i*6+j,0)>max_positive_cartesian_vel_[i][j]+0.0001){
+            active_cartesians[i*6+j]=1;
+            desired_vel_cartesian(i*6+j,0)=max_positive_cartesian_vel_[i][j]-cartesian_velocity(i*6+j)-0.0001;
+            finished=false;
+            limit_cartesian=true;
+            std::fill(active_joints.begin(), active_joints.end(), 0);
+            //std::cout<<"Cartesian chain "<<i<<" axis "<<j<<" mayor que max_positive"<<std::endl;
+            //std::cout<<cartesian_velocity(i*6+j)<<"    ----->  "<<max_positive_cartesian_vel_[i][j]<<std::endl;
+          }
+          else if(cartesian_velocity(i*6+j,0)<max_negative_cartesian_vel_[i][j]-0.0001){
+            active_cartesians[i*6+j]=1;
+            desired_vel_cartesian(i*6+j,0)=max_negative_cartesian_vel_[i][j]-cartesian_velocity(i*6+j)+0.0001;
+
+            finished=false;
+            limit_cartesian=true;
+            std::fill(active_joints.begin(), active_joints.end(), 0);
+            //std::cout<<"Cartesian chain "<<i<<" axis "<<j<<" menor que max_negative"<<std::endl;
+            //std::cout<<cartesian_velocity(i*6+j)<<"    ----->  "<<max_negative_cartesian_vel_[i][j]<<std::endl;
+          }
+          else if(active_cartesians[i*6+j]==1){
+            desired_vel_cartesian(i*6+j,0)=0;
+        }
       }
     }
 
+    if(!limit_cartesian){
+      for(int i=0; i<vels.rows(); i++){
+        if(vels(i,0)>max_positive_joint_vel_[i]+0.0001){
+
+          active_joints[i]=1;
+          desired_vel_joint(i,0)=max_positive_joint_vel_[i]-vels(i,0)-0.0001;
+          finished=false;
+          //std::cout<<"Joint "<<i<<"mayor que max_positive"<<std::endl;
+          //std::cout<<vels(i,0)<<"    ----->  "<<max_positive_joint_vel_[i]<<std::endl;
+        }
+        else if(vels(i,0)<max_negative_joint_vel_[i]-0.0001){
+
+          active_joints[i]=1;
+          desired_vel_joint(i,0)=max_negative_joint_vel_[i]-vels(i,0)+0.0001;
+          finished=true;
+          //std::cout<<"Joint "<<i<<"mayor que max_negative"<<std::endl;
+          //std::cout<<vels(i,0)<<"    ----->  "<<max_negative_joint_vel_[i]<<std::endl;
+        }
+        else if(active_joints[i]==1){
+          desired_vel_joint(i,0)=0;
+        }
+      }
+    }
+
+    Eigen::MatrixXd jac_cartesian_modified=jac_cartesian;
     Eigen::MatrixXd jac_joint_modified=jac_joint;
 
-
+    for(int i=0; i<active_cartesians.size(); i++){
+      if(active_cartesians[i]==0){
+        jac_cartesian_modified.row(i).setZero();
+      }
+    }
     for(int i=0; i<active_joints.size(); i++){
       if(active_joints[i]==0){
         jac_joint_modified.row(i).setZero();
       }
     }
 
-    Eigen::MatrixXd new_T_k_complete(jac_joint_modified.rows()+T_k_complete_.rows(), jac_joint_modified.cols());
-    new_T_k_complete<<jac_joint_modified,T_k_complete_;
-    /*std::cout<<"new T_k_complete"<<std::endl; */
-    /*std::cout<<new_T_k_complete<<std::endl; */
+
+   Eigen::MatrixXd new_T_k_complete(jac_cartesian_modified.rows()+jac_joint_modified.rows()+T_k_complete_.rows(), jac_joint_modified.cols());
+   new_T_k_complete<<jac_cartesian_modified, jac_joint_modified,T_k_complete_;
+   /*std::cout<<"new T_k_complete"<<std::endl;
+   std::cout<<new_T_k_complete<<std::endl;*/
+    Eigen::MatrixXd new_T_k_inverse=pinvMat(new_T_k_complete);
+   /* std::cout<<"new T_k_inverse"<<std::endl;
+    std::cout<<new_T_k_inverse<<std::endl;*/
+    Eigen::MatrixXd new_T_k(jac_joint_modified.cols(), jac_cartesian_modified.rows()+jac_joint_modified.rows());
+    for(int i=0; i<new_T_k.rows(); i++){
+      for(int j=0; j<new_T_k.cols(); j++){
+        new_T_k(i,j)=new_T_k_inverse(i,j);
+      }
+    }
+   /* std::cout<<"new T_k"<<std::endl;
+    std::cout<<new_T_k<<std::endl;*/
+
+    Eigen::MatrixXd jac(jac_cartesian_modified.rows()+jac_joint_modified.rows(), jac_joint_modified.cols());
+    jac<<jac_cartesian_modified, jac_joint_modified;
+    Eigen::MatrixXd desired_vel(desired_vel_cartesian.rows()+ desired_vel_joint.rows(),1);
+    desired_vel<<desired_vel_cartesian, desired_vel_joint;
+
+
+
+
+    /*std::cout<<"-----------------------------------------------"<<std::endl;
+    std::cout<<"vels"<<std::endl;
+    std::cout<<vels<<std::endl;
+    std::cout<<"desired vels"<<std::endl;
+    std::cout<<desired_vel<<std::endl;
+    std::cout<<"jacobian with null space"<<std::endl;
+    std::cout<<(new_T_k*(pinvMat(jac*new_T_k)))<<std::endl;
+    std::cout<<"joint_velocities"<<std::endl;
+
+    std::cout<<(new_T_k*(pinvMat(jac*new_T_k)))*desired_vel<<std::endl;
+
+    std::cout<<"-----------------------------------------------"<<std::endl;*/
+
+
+    vels=vels+(new_T_k*(pinvMat(jac*new_T_k)))*desired_vel;
+    //std::cout<<"new vel"<<std::endl;
+    //std::cout<<vels<<std::endl;
+
+    //char a;
+   //std::cin>>a;
+
+    iterations++;
+  }
+  if(iterations==100){
+    vels=init_vels;
+  }
+
+  return vels;
+}
+
+
+
+Eigen::MatrixXd MultiTask::limitJointsAndCartesianNoNull(Eigen::MatrixXd vels){
+  Eigen::MatrixXd init_vels=vels;
+  Eigen::MatrixXd jac_joint(vels.rows(), vels.rows()), desired_vel_joint(vels.rows(),1);
+  jac_joint.setZero();
+  for(int i=0; i<vels.rows(); i++){
+    jac_joint(i,i)=1;
+  }
+  desired_vel_joint.setZero();
+
+  Eigen::MatrixXd jac_cartesian(chains_.size()*6, vels.rows()),desired_vel_cartesian(chains_.size()*6,1);
+  jac_cartesian.setZero();
+  desired_vel_cartesian.setZero();
+
+  for(int i=0; i<chains_.size(); i++){
+    KDL::Chain chain_odom;
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransY)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransZ)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotX)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotY)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ)));
+    chain_odom.addChain(chains_[i]);
+    KDL::ChainJntToJacSolver jac_sovler(chain_odom);
+
+    KDL::JntArray q(chain_odom.getNrOfJoints());
+    for(int j=0; j<odom_.size(); j++){
+      q(j)=odom_[j];
+    }
+    for(int j=0; j<chains_[i].getNrOfJoints(); j++){
+      q(j+odom_.size())=current_joints_[chain_joint_relations_[i][j]];
+    }
+
+    KDL::Jacobian jac_chain(chain_odom.getNrOfJoints());
+    jac_sovler.JntToJac(q, jac_chain);
+
+    for(int j=0; j<chain_joint_relations_[i].size(); j++){
+     jac_cartesian(i*6,chain_joint_relations_[i][j])=jac_chain(0, j+odom_.size());
+     jac_cartesian(i*6+1,chain_joint_relations_[i][j])=jac_chain(1, j+odom_.size());
+     jac_cartesian(i*6+2,chain_joint_relations_[i][j])=jac_chain(2, j+odom_.size());
+     jac_cartesian(i*6+3,chain_joint_relations_[i][j])=jac_chain(3, j+odom_.size());
+     jac_cartesian(i*6+4,chain_joint_relations_[i][j])=jac_chain(4, j+odom_.size());
+     jac_cartesian(i*6+5,chain_joint_relations_[i][j])=jac_chain(5, j+odom_.size());
+    }
+  }
+
+
+
+  bool finished=false;
+  bool limit_cartesian=false;
+  std::vector<int> active_cartesians(chains_.size()*6,0);
+  std::vector<int> active_joints(vels.rows(),0);
+  int iterations=0;
+  while(!finished && iterations<100){
+    finished=true;
+    limit_cartesian=false;
+
+
+    Eigen::MatrixXd cartesian_velocity=jac_cartesian*vels;
+    for(int i=0; i<chains_.size(); i++){
+      for(int j=0; j<6; j++){
+          if(cartesian_velocity(i*6+j,0)>max_positive_cartesian_vel_[i][j]+0.0001){
+            active_cartesians[i*6+j]=1;
+            desired_vel_cartesian(i*6+j,0)=max_positive_cartesian_vel_[i][j]-cartesian_velocity(i*6+j)-0.0001;
+            finished=false;
+            limit_cartesian=true;
+            std::fill(active_joints.begin(), active_joints.end(), 0);
+            //std::cout<<"Cartesian chain "<<i<<" axis "<<j<<" mayor que max_positive"<<std::endl;
+            //std::cout<<cartesian_velocity(i*6+j)<<"    ----->  "<<max_positive_cartesian_vel_[i][j]<<std::endl;
+          }
+          else if(cartesian_velocity(i*6+j,0)<max_negative_cartesian_vel_[i][j]-0.0001){
+            active_cartesians[i*6+j]=1;
+            desired_vel_cartesian(i*6+j,0)=max_negative_cartesian_vel_[i][j]-cartesian_velocity(i*6+j)+0.0001;
+
+            finished=false;
+            limit_cartesian=true;
+            std::fill(active_joints.begin(), active_joints.end(), 0);
+            //std::cout<<"Cartesian chain "<<i<<" axis "<<j<<" menor que max_negative"<<std::endl;
+            //std::cout<<cartesian_velocity(i*6+j)<<"    ----->  "<<max_negative_cartesian_vel_[i][j]<<std::endl;
+          }
+          else if(active_cartesians[i*6+j]==1){
+            desired_vel_cartesian(i*6+j,0)=0;
+        }
+      }
+    }
+
+    if(!limit_cartesian){
+      for(int i=0; i<vels.rows(); i++){
+        if(vels(i,0)>max_positive_joint_vel_[i]+0.0001){
+
+          active_joints[i]=1;
+          desired_vel_joint(i,0)=max_positive_joint_vel_[i]-vels(i,0)-0.0001;
+          finished=false;
+          //std::cout<<"Joint "<<i<<"mayor que max_positive"<<std::endl;
+          //std::cout<<vels(i,0)<<"    ----->  "<<max_positive_joint_vel_[i]<<std::endl;
+        }
+        else if(vels(i,0)<max_negative_joint_vel_[i]-0.0001){
+
+          active_joints[i]=1;
+          desired_vel_joint(i,0)=max_negative_joint_vel_[i]-vels(i,0)+0.0001;
+          finished=true;
+          //std::cout<<"Joint "<<i<<"mayor que max_negative"<<std::endl;
+          //std::cout<<vels(i,0)<<"    ----->  "<<max_negative_joint_vel_[i]<<std::endl;
+        }
+        else if(active_joints[i]==1){
+          desired_vel_joint(i,0)=0;
+        }
+      }
+    }
+
+    Eigen::MatrixXd jac_cartesian_modified=jac_cartesian;
+    Eigen::MatrixXd jac_joint_modified=jac_joint;
+
+    for(int i=0; i<active_cartesians.size(); i++){
+      if(active_cartesians[i]==0){
+        jac_cartesian_modified.row(i).setZero();
+      }
+    }
+    for(int i=0; i<active_joints.size(); i++){
+      if(active_joints[i]==0){
+        jac_joint_modified.row(i).setZero();
+      }
+    }
+
+
+   Eigen::MatrixXd new_T_k_complete(jac_cartesian_modified.rows()+jac_joint_modified.rows()+J_k_task_.rows(), jac_joint_modified.cols());
+   new_T_k_complete<<jac_cartesian_modified, jac_joint_modified,J_k_task_;
+   /*std::cout<<"new T_k_complete"<<std::endl; */
+   /*std::cout<<new_T_k_complete<<std::endl; */
     Eigen::MatrixXd new_T_k_inverse=pinvMat(new_T_k_complete);
     /*std::cout<<"new T_k_inverse"<<std::endl; */
     /*std::cout<<new_T_k_inverse<<std::endl; */
-    Eigen::MatrixXd new_T_k(jac_joint_modified.cols(), jac_joint_modified.rows());
+    Eigen::MatrixXd new_T_k(jac_joint_modified.cols(), jac_cartesian_modified.rows()+jac_joint_modified.rows());
     for(int i=0; i<new_T_k.rows(); i++){
       for(int j=0; j<new_T_k.cols(); j++){
         new_T_k(i,j)=new_T_k_inverse(i,j);
@@ -562,10 +843,11 @@ Eigen::MatrixXd MultiTask::limitJoints(Eigen::MatrixXd vels){
     /*std::cout<<"new T_k"<<std::endl; */
     /*std::cout<<new_T_k<<std::endl; */
 
-    Eigen::MatrixXd jac(jac_joint_modified.rows(), jac_joint_modified.cols());
-    jac<<jac_joint_modified;
-    Eigen::MatrixXd desired_vel(desired_vel_joint.rows(),1);
-    desired_vel<< desired_vel_joint;
+    Eigen::MatrixXd jac(jac_cartesian_modified.rows()+jac_joint_modified.rows(), jac_joint_modified.cols());
+    jac<<jac_cartesian_modified, jac_joint_modified;
+    Eigen::MatrixXd desired_vel(desired_vel_cartesian.rows()+ desired_vel_joint.rows(),1);
+    desired_vel<<desired_vel_cartesian, desired_vel_joint;
+
 
 
 
@@ -583,15 +865,75 @@ Eigen::MatrixXd MultiTask::limitJoints(Eigen::MatrixXd vels){
     /*std::cout<<"-----------------------------------------------"<<std::endl; */
 
 
-
-
-
     vels=vels+(new_T_k*(pinvMat(jac*new_T_k)))*desired_vel;
     /*std::cout<<"new vel"<<std::endl; */
     /*std::cout<<vels<<std::endl; */
+
+    char a;
+   //std::cin>>a;
+
+    iterations++;
+  }
+  if(iterations==100){
+    vels=init_vels;
+  }
+
+  return vels;
+}
+
+
+
+
+Eigen::MatrixXd MultiTask::limitVels(Eigen::MatrixXd vels){
+  float max_vel=0;
+  for(int i=0; i<vels.rows(); i++){
+    if(std::abs(vels(i,0))>max_vel){
+      max_vel=std::abs(vels(i,0));
+    }
+  }
+  if(max_vel>max_joint_vel_){
+    for(int i=0; i<vels.rows(); i++){
+      vels(i,0)=vels(i,0)*max_joint_vel_/max_vel;
+    }
   }
   return vels;
 }
+
+bool MultiTask::goalsInitialized(){
+  bool initialized=true;
+  for(int i=0; i<tasks_.size(); i++){
+    initialized= initialized && tasks_[i]->goalInitialized();
+  }
+  return initialized;
+}
+
+task_priority::MultiTask_msg MultiTask::getMsg(Eigen::MatrixXd vels){
+  task_priority::MultiTask_msg msg;
+  msg.name=name_;
+  for(int i=0; i<tasks_.size(); i++){
+    msg.tasks.push_back(tasks_[i]->getMsg(vels));
+  }
+  return msg;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 Eigen::MatrixXd MultiTask::limitCartesian(Eigen::MatrixXd vels){
@@ -710,8 +1052,7 @@ Eigen::MatrixXd MultiTask::limitCartesian(Eigen::MatrixXd vels){
 }
 
 
-
-Eigen::MatrixXd MultiTask::limitJointsAndCartesian(Eigen::MatrixXd vels){
+Eigen::MatrixXd MultiTask::limitJoints(Eigen::MatrixXd vels){
   Eigen::MatrixXd jac_joint(vels.rows(), vels.rows()), desired_vel_joint(vels.rows(),1);
   jac_joint.setZero();
   for(int i=0; i<vels.rows(); i++){
@@ -719,379 +1060,86 @@ Eigen::MatrixXd MultiTask::limitJointsAndCartesian(Eigen::MatrixXd vels){
   }
   desired_vel_joint.setZero();
 
-  Eigen::MatrixXd jac_cartesian(chains_.size()*6, vels.rows()),desired_vel_cartesian(chains_.size()*6,1);
-  jac_cartesian.setZero();
-  desired_vel_cartesian.setZero();
-
-  for(int i=0; i<chains_.size(); i++){
-    KDL::Chain chain_odom;
-    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
-    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransY)));
-    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransZ)));
-    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotX)));
-    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotY)));
-    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ)));
-    chain_odom.addChain(chains_[i]);
-    KDL::ChainJntToJacSolver jac_sovler(chain_odom);
-
-    KDL::JntArray q(chain_odom.getNrOfJoints());
-    for(int j=0; j<odom_.size(); j++){
-      q(j)=odom_[j];
-    }
-    for(int j=0; j<chains_[i].getNrOfJoints(); j++){
-      q(j+odom_.size())=current_joints_[chain_joint_relations_[i][j]];
-    }
-
-    KDL::Jacobian jac_chain(chain_odom.getNrOfJoints());
-    jac_sovler.JntToJac(q, jac_chain);
-
-    for(int j=0; j<chain_joint_relations_[i].size(); j++){
-     jac_cartesian(i*6,chain_joint_relations_[i][j])=jac_chain(0, j+odom_.size());
-     jac_cartesian(i*6+1,chain_joint_relations_[i][j])=jac_chain(1, j+odom_.size());
-     jac_cartesian(i*6+2,chain_joint_relations_[i][j])=jac_chain(2, j+odom_.size());
-     jac_cartesian(i*6+3,chain_joint_relations_[i][j])=jac_chain(3, j+odom_.size());
-     jac_cartesian(i*6+4,chain_joint_relations_[i][j])=jac_chain(4, j+odom_.size());
-     jac_cartesian(i*6+5,chain_joint_relations_[i][j])=jac_chain(5, j+odom_.size());
-    }
-  }
-
 
 
   bool finished=false;
-  bool limit_cartesian=false;
-  std::vector<int> active_cartesians(chains_.size()*6,0);
   std::vector<int> active_joints(vels.rows(),0);
   while(!finished){
     finished=true;
-    limit_cartesian=false;
 
-
-    Eigen::MatrixXd cartesian_velocity=jac_cartesian*vels;
-    for(int i=0; i<chains_.size(); i++){
-      for(int j=0; j<6; j++){
-          if(cartesian_velocity(i*6+j,0)>max_positive_cartesian_vel_[i][j]+0.0001){
-            active_cartesians[i*6+j]=1;
-            desired_vel_cartesian(i*6+j,0)=max_positive_cartesian_vel_[i][j]-cartesian_velocity(i*6+j);
-            finished=false;
-            limit_cartesian=true;
-            std::fill(active_joints.begin(), active_joints.end(), 0);
-            //std::cout<<"Cartesian chain "<<i<<" axis "<<j<<" mayor que max_positive"<<std::endl;
-            //std::cout<<cartesian_velocity(i*6+j)<<"    ----->  "<<max_positive_cartesian_vel_[i][j]<<std::endl;
-          }
-          else if(cartesian_velocity(i*6+j,0)<max_negative_cartesian_vel_[i][j]-0.0001){
-            active_cartesians[i*6+j]=1;
-            desired_vel_cartesian(i*6+j,0)=max_negative_cartesian_vel_[i][j]-cartesian_velocity(i*6+j);
-
-            finished=false;
-            limit_cartesian=true;
-            std::fill(active_joints.begin(), active_joints.end(), 0);
-            //std::cout<<"Cartesian chain "<<i<<" axis "<<j<<" menor que max_negative"<<std::endl;
-            //std::cout<<cartesian_velocity(i*6+j)<<"    ----->  "<<max_negative_cartesian_vel_[i][j]<<std::endl;
-          }
-          else if(active_cartesians[i*6+j]==1){
-            desired_vel_cartesian(i*6+j,0)=0;
-        }
-      }
-    }
-
-    if(!limit_cartesian){
-      for(int i=0; i<vels.rows(); i++){
-        if(vels(i,0)>max_positive_joint_vel_[i]+0.0001){
-
-          active_joints[i]=1;
-          desired_vel_joint(i,0)=max_positive_joint_vel_[i]-vels(i,0);
-          finished=false;
-          //std::cout<<"Joint "<<i<<"mayor que max_positive"<<std::endl;
-          //std::cout<<vels(i,0)<<"    ----->  "<<max_positive_joint_vel_[i]<<std::endl;
-        }
-        else if(vels(i,0)<max_negative_joint_vel_[i]-0.0001){
-
-          active_joints[i]=1;
-          desired_vel_joint(i,0)=max_negative_joint_vel_[i]-vels(i,0);
-          finished=true;
-          //std::cout<<"Joint "<<i<<"mayor que max_negative"<<std::endl;
-          //std::cout<<vels(i,0)<<"    ----->  "<<max_negative_joint_vel_[i]<<std::endl;
-        }
-        else if(active_joints[i]==1){
-          desired_vel_joint(i,0)=0;
-        }
-      }
-    }
-
-    Eigen::MatrixXd jac_cartesian_modified=jac_cartesian;
-    Eigen::MatrixXd jac_joint_modified=jac_joint;
-
-    for(int i=0; i<active_cartesians.size(); i++){
-      if(active_cartesians[i]==0){
-        jac_cartesian_modified.row(i).setZero();
-      }
-    }
-    for(int i=0; i<active_joints.size(); i++){
-      if(active_joints[i]==0){
-        jac_joint_modified.row(i).setZero();
-      }
-    }
-
-
-   Eigen::MatrixXd new_T_k_complete(jac_cartesian_modified.rows()+jac_joint_modified.rows()+T_k_complete_.rows(), jac_joint_modified.cols());
-   new_T_k_complete<<jac_cartesian_modified, jac_joint_modified,T_k_complete_;
-   /*std::cout<<"new T_k_complete"<<std::endl; */
-   /*std::cout<<new_T_k_complete<<std::endl; */
-    Eigen::MatrixXd new_T_k_inverse=pinvMat(new_T_k_complete);
-    /*std::cout<<"new T_k_inverse"<<std::endl; */
-    /*std::cout<<new_T_k_inverse<<std::endl; */
-    Eigen::MatrixXd new_T_k(jac_joint_modified.cols(), jac_cartesian_modified.rows()+jac_joint_modified.rows());
-    for(int i=0; i<new_T_k.rows(); i++){
-      for(int j=0; j<new_T_k.cols(); j++){
-        new_T_k(i,j)=new_T_k_inverse(i,j);
-      }
-    }
-    /*std::cout<<"new T_k"<<std::endl; */
-    /*std::cout<<new_T_k<<std::endl; */
-
-    Eigen::MatrixXd jac(jac_cartesian_modified.rows()+jac_joint_modified.rows(), jac_joint_modified.cols());
-    jac<<jac_cartesian_modified, jac_joint_modified;
-    Eigen::MatrixXd desired_vel(desired_vel_cartesian.rows()+ desired_vel_joint.rows(),1);
-    desired_vel<<desired_vel_cartesian, desired_vel_joint;
-
-
-
-
-    /*std::cout<<"-----------------------------------------------"<<std::endl; */
-    /*std::cout<<"vels"<<std::endl; */
-    /*std::cout<<vels<<std::endl; */
-    /*std::cout<<"desired vels"<<std::endl; */
-    /*std::cout<<desired_vel<<std::endl; */
-    /*std::cout<<"jacobian with null space"<<std::endl; */
-    /*std::cout<<(new_T_k*(pinvMat(jac*new_T_k)))<<std::endl; */
-    /*std::cout<<"joint_velocities"<<std::endl; */
-
-    /*std::cout<<(new_T_k*(pinvMat(jac*new_T_k)))*desired_vel<<std::endl; */
-
-    /*std::cout<<"-----------------------------------------------"<<std::endl; */
-
-
-    vels=vels+(new_T_k*(pinvMat(jac*new_T_k)))*desired_vel;
-    /*std::cout<<"new vel"<<std::endl; */
-    /*std::cout<<vels<<std::endl; */
-
-    char a;
-   //std::cin>>a;
-
-
-  }
-
-
-  return vels;
-}
-
-
-
-Eigen::MatrixXd MultiTask::limitJointsAndCartesianNoNull(Eigen::MatrixXd vels){
-  Eigen::MatrixXd jac_joint(vels.rows(), vels.rows()), desired_vel_joint(vels.rows(),1);
-  jac_joint.setZero();
-  for(int i=0; i<vels.rows(); i++){
-    jac_joint(i,i)=1;
-  }
-  desired_vel_joint.setZero();
-
-  Eigen::MatrixXd jac_cartesian(chains_.size()*6, vels.rows()),desired_vel_cartesian(chains_.size()*6,1);
-  jac_cartesian.setZero();
-  desired_vel_cartesian.setZero();
-
-  for(int i=0; i<chains_.size(); i++){
-    KDL::Chain chain_odom;
-    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
-    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransY)));
-    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransZ)));
-    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotX)));
-    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotY)));
-    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ)));
-    chain_odom.addChain(chains_[i]);
-    KDL::ChainJntToJacSolver jac_sovler(chain_odom);
-
-    KDL::JntArray q(chain_odom.getNrOfJoints());
-    for(int j=0; j<odom_.size(); j++){
-      q(j)=odom_[j];
-    }
-    for(int j=0; j<chains_[i].getNrOfJoints(); j++){
-      q(j+odom_.size())=current_joints_[chain_joint_relations_[i][j]];
-    }
-
-    KDL::Jacobian jac_chain(chain_odom.getNrOfJoints());
-    jac_sovler.JntToJac(q, jac_chain);
-
-    for(int j=0; j<chain_joint_relations_[i].size(); j++){
-     jac_cartesian(i*6,chain_joint_relations_[i][j])=jac_chain(0, j+odom_.size());
-     jac_cartesian(i*6+1,chain_joint_relations_[i][j])=jac_chain(1, j+odom_.size());
-     jac_cartesian(i*6+2,chain_joint_relations_[i][j])=jac_chain(2, j+odom_.size());
-     jac_cartesian(i*6+3,chain_joint_relations_[i][j])=jac_chain(3, j+odom_.size());
-     jac_cartesian(i*6+4,chain_joint_relations_[i][j])=jac_chain(4, j+odom_.size());
-     jac_cartesian(i*6+5,chain_joint_relations_[i][j])=jac_chain(5, j+odom_.size());
-    }
-  }
-
-
-
-  bool finished=false;
-  bool limit_cartesian=false;
-  std::vector<int> active_cartesians(chains_.size()*6,0);
-  std::vector<int> active_joints(vels.rows(),0);
-  while(!finished){
-    finished=true;
-    limit_cartesian=false;
-
-
-    Eigen::MatrixXd cartesian_velocity=jac_cartesian*vels;
-    for(int i=0; i<chains_.size(); i++){
-      for(int j=0; j<6; j++){
-          if(cartesian_velocity(i*6+j,0)>max_positive_cartesian_vel_[i][j]+0.0001){
-            active_cartesians[i*6+j]=1;
-            desired_vel_cartesian(i*6+j,0)=max_positive_cartesian_vel_[i][j]-cartesian_velocity(i*6+j);
-            finished=false;
-            limit_cartesian=true;
-            std::fill(active_joints.begin(), active_joints.end(), 0);
-            //std::cout<<"Cartesian chain "<<i<<" axis "<<j<<" mayor que max_positive"<<std::endl;
-            //std::cout<<cartesian_velocity(i*6+j)<<"    ----->  "<<max_positive_cartesian_vel_[i][j]<<std::endl;
-          }
-          else if(cartesian_velocity(i*6+j,0)<max_negative_cartesian_vel_[i][j]-0.0001){
-            active_cartesians[i*6+j]=1;
-            desired_vel_cartesian(i*6+j,0)=max_negative_cartesian_vel_[i][j]-cartesian_velocity(i*6+j);
-
-            finished=false;
-            limit_cartesian=true;
-            std::fill(active_joints.begin(), active_joints.end(), 0);
-            //std::cout<<"Cartesian chain "<<i<<" axis "<<j<<" menor que max_negative"<<std::endl;
-            //std::cout<<cartesian_velocity(i*6+j)<<"    ----->  "<<max_negative_cartesian_vel_[i][j]<<std::endl;
-          }
-          else if(active_cartesians[i*6+j]==1){
-            desired_vel_cartesian(i*6+j,0)=0;
-        }
-      }
-    }
-
-    if(!limit_cartesian){
-      for(int i=0; i<vels.rows(); i++){
-        if(vels(i,0)>max_positive_joint_vel_[i]+0.0001){
-
-          active_joints[i]=1;
-          desired_vel_joint(i,0)=max_positive_joint_vel_[i]-vels(i,0);
-          finished=false;
-          //std::cout<<"Joint "<<i<<"mayor que max_positive"<<std::endl;
-          //std::cout<<vels(i,0)<<"    ----->  "<<max_positive_joint_vel_[i]<<std::endl;
-        }
-        else if(vels(i,0)<max_negative_joint_vel_[i]-0.0001){
-
-          active_joints[i]=1;
-          desired_vel_joint(i,0)=max_negative_joint_vel_[i]-vels(i,0);
-          finished=true;
-          //std::cout<<"Joint "<<i<<"mayor que max_negative"<<std::endl;
-          //std::cout<<vels(i,0)<<"    ----->  "<<max_negative_joint_vel_[i]<<std::endl;
-        }
-        else if(active_joints[i]==1){
-          desired_vel_joint(i,0)=0;
-        }
-      }
-    }
-
-    Eigen::MatrixXd jac_cartesian_modified=jac_cartesian;
-    Eigen::MatrixXd jac_joint_modified=jac_joint;
-
-    for(int i=0; i<active_cartesians.size(); i++){
-      if(active_cartesians[i]==0){
-        jac_cartesian_modified.row(i).setZero();
-      }
-    }
-    for(int i=0; i<active_joints.size(); i++){
-      if(active_joints[i]==0){
-        jac_joint_modified.row(i).setZero();
-      }
-    }
-
-
-   Eigen::MatrixXd new_T_k_complete(jac_cartesian_modified.rows()+jac_joint_modified.rows()+J_k_task_.rows(), jac_joint_modified.cols());
-   new_T_k_complete<<jac_cartesian_modified, jac_joint_modified,J_k_task_;
-   /*std::cout<<"new T_k_complete"<<std::endl; */
-   /*std::cout<<new_T_k_complete<<std::endl; */
-    Eigen::MatrixXd new_T_k_inverse=pinvMat(new_T_k_complete);
-    /*std::cout<<"new T_k_inverse"<<std::endl; */
-    /*std::cout<<new_T_k_inverse<<std::endl; */
-    Eigen::MatrixXd new_T_k(jac_joint_modified.cols(), jac_cartesian_modified.rows()+jac_joint_modified.rows());
-    for(int i=0; i<new_T_k.rows(); i++){
-      for(int j=0; j<new_T_k.cols(); j++){
-        new_T_k(i,j)=new_T_k_inverse(i,j);
-      }
-    }
-    /*std::cout<<"new T_k"<<std::endl; */
-    /*std::cout<<new_T_k<<std::endl; */
-
-    Eigen::MatrixXd jac(jac_cartesian_modified.rows()+jac_joint_modified.rows(), jac_joint_modified.cols());
-    jac<<jac_cartesian_modified, jac_joint_modified;
-    Eigen::MatrixXd desired_vel(desired_vel_cartesian.rows()+ desired_vel_joint.rows(),1);
-    desired_vel<<desired_vel_cartesian, desired_vel_joint;
-
-
-
-
-    /*std::cout<<"-----------------------------------------------"<<std::endl; */
-    /*std::cout<<"vels"<<std::endl; */
-    /*std::cout<<vels<<std::endl; */
-    /*std::cout<<"desired vels"<<std::endl; */
-    /*std::cout<<desired_vel<<std::endl; */
-    /*std::cout<<"jacobian with null space"<<std::endl; */
-    /*std::cout<<(new_T_k*(pinvMat(jac*new_T_k)))<<std::endl; */
-    /*std::cout<<"joint_velocities"<<std::endl; */
-
-    /*std::cout<<(new_T_k*(pinvMat(jac*new_T_k)))*desired_vel<<std::endl; */
-
-    /*std::cout<<"-----------------------------------------------"<<std::endl; */
-
-
-    vels=vels+(new_T_k*(pinvMat(jac*new_T_k)))*desired_vel;
-    /*std::cout<<"new vel"<<std::endl; */
-    /*std::cout<<vels<<std::endl; */
-
-    char a;
-   //std::cin>>a;
-
-
-  }
-
-
-  return vels;
-}
-
-
-
-
-Eigen::MatrixXd MultiTask::limitVels(Eigen::MatrixXd vels){
-  float max_vel=0;
-  for(int i=0; i<vels.rows(); i++){
-    if(std::abs(vels(i,0))>max_vel){
-      max_vel=std::abs(vels(i,0));
-    }
-  }
-  if(max_vel>max_joint_vel_){
     for(int i=0; i<vels.rows(); i++){
-      vels(i,0)=vels(i,0)*max_joint_vel_/max_vel;
+      if(vels(i,0)>max_positive_joint_vel_[i]+0.0001){
+        active_joints[i]=1;
+        desired_vel_joint(i,0)=max_positive_joint_vel_[i]-vels(i,0);
+        finished=false;
+        //std::cout<<"Joint "<<i<<"mayor que max_positive"<<std::endl;
+        //std::cout<<vels(i,0)<<"    ----->  "<<max_positive_joint_vel_[i]<<std::endl;
+      }
+      else if(vels(i,0)<max_negative_joint_vel_[i]-0.0001){
+        active_joints[i]=1;
+        desired_vel_joint(i,0)=max_negative_joint_vel_[i]-vels(i,0);
+        finished=true;
+        //std::cout<<"Joint "<<i<<"menor que max_negative"<<std::endl;
+        //std::cout<<vels(i,0)<<"    ----->  "<<max_negative_joint_vel_[i]<<std::endl;
+      }
+      else if(active_joints[i]==1){
+        desired_vel_joint(i,0)=0;
+      }
     }
+
+    Eigen::MatrixXd jac_joint_modified=jac_joint;
+
+
+    for(int i=0; i<active_joints.size(); i++){
+      if(active_joints[i]==0){
+        jac_joint_modified.row(i).setZero();
+      }
+    }
+
+    Eigen::MatrixXd new_T_k_complete(jac_joint_modified.rows()+T_k_complete_.rows(), jac_joint_modified.cols());
+    new_T_k_complete<<jac_joint_modified,T_k_complete_;
+    /*std::cout<<"new T_k_complete"<<std::endl; */
+    /*std::cout<<new_T_k_complete<<std::endl; */
+    Eigen::MatrixXd new_T_k_inverse=pinvMat(new_T_k_complete);
+    /*std::cout<<"new T_k_inverse"<<std::endl; */
+    /*std::cout<<new_T_k_inverse<<std::endl; */
+    Eigen::MatrixXd new_T_k(jac_joint_modified.cols(), jac_joint_modified.rows());
+    for(int i=0; i<new_T_k.rows(); i++){
+      for(int j=0; j<new_T_k.cols(); j++){
+        new_T_k(i,j)=new_T_k_inverse(i,j);
+      }
+    }
+    /*std::cout<<"new T_k"<<std::endl; */
+    /*std::cout<<new_T_k<<std::endl; */
+
+    Eigen::MatrixXd jac(jac_joint_modified.rows(), jac_joint_modified.cols());
+    jac<<jac_joint_modified;
+    Eigen::MatrixXd desired_vel(desired_vel_joint.rows(),1);
+    desired_vel<< desired_vel_joint;
+
+
+
+    /*std::cout<<"-----------------------------------------------"<<std::endl; */
+    /*std::cout<<"vels"<<std::endl; */
+    /*std::cout<<vels<<std::endl; */
+    /*std::cout<<"desired vels"<<std::endl; */
+    /*std::cout<<desired_vel<<std::endl; */
+    /*std::cout<<"jacobian with null space"<<std::endl; */
+    /*std::cout<<(new_T_k*(pinvMat(jac*new_T_k)))<<std::endl; */
+    /*std::cout<<"joint_velocities"<<std::endl; */
+
+    /*std::cout<<(new_T_k*(pinvMat(jac*new_T_k)))*desired_vel<<std::endl; */
+
+    /*std::cout<<"-----------------------------------------------"<<std::endl; */
+
+
+
+
+
+    vels=vels+(new_T_k*(pinvMat(jac*new_T_k)))*desired_vel;
+    /*std::cout<<"new vel"<<std::endl; */
+    /*std::cout<<vels<<std::endl; */
   }
   return vels;
 }
 
-bool MultiTask::goalsInitialized(){
-  bool initialized=true;
-  for(int i=0; i<tasks_.size(); i++){
-    initialized= initialized && tasks_[i]->goalInitialized();
-  }
-  return initialized;
-}
-
-task_priority::MultiTask_msg MultiTask::getMsg(Eigen::MatrixXd vels){
-  task_priority::MultiTask_msg msg;
-  msg.name=name_;
-  for(int i=0; i<tasks_.size(); i++){
-    msg.tasks.push_back(tasks_[i]->getMsg(vels));
-  }
-  return msg;
-}

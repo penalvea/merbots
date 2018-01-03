@@ -1,10 +1,10 @@
-#include <task_priority/controller.hpp>
+#include <task_priority/grasp_planning_controller.hpp>
 #include <task_priority/TaskPriority_msg.h>
 #include <task_priority/HardConstraints_msg.h>
 
 
 
-Controller::Controller(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float max_cartesian_vel, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, bool simulation, std::vector<float> p_values, std::vector<float> i_values, std::vector<float> d_values){
+GraspController::GraspController(std::vector<MultiTaskPtr> multitasks, int n_joints, std::vector<float> max_joint_limit, std::vector<float> min_joint_limit, std::vector<std::vector<float> > max_cartesian_limits, std::vector<std::vector<float> > min_cartesian_limits, float max_cartesian_vel, float acceleration, float max_joint_vel, float sampling_duration, ros::NodeHandle nh, std::string arm_joint_state_topic, std::string arm_joint_command_topic, std::string vehicle_tf, std::string world_tf, std::string vehicle_command_topic, std::vector<KDL::Chain> chains, std::vector<std::vector<int> > chain_joint_relations, bool simulation, std::vector<float> p_values, std::vector<float> i_values, std::vector<float> d_values){
 multitasks_=multitasks;
 n_joints_=n_joints;
 max_joint_limit_=max_joint_limit;
@@ -38,7 +38,7 @@ simulation_=simulation;
 
 
 
-joints_sub_=nh_.subscribe<sensor_msgs::JointState>(arm_joint_state_topic, 1, &Controller::jointsCallback, this);
+//joints_sub_=nh_.subscribe<sensor_msgs::JointState>(arm_joint_state_topic, 1, &GraspController::jointsCallback, this);
 joints_pub_=nh_.advertise<sensor_msgs::JointState>(arm_joint_command_topic,1);
 
 if(simulation){
@@ -56,12 +56,12 @@ status_pub_=nh_.advertise<task_priority::TaskPriority_msg>("/task_priority/statu
 constraints_pub_=nh_.advertise<task_priority::HardConstraints_msg>("/task_priority/hard_constraints", 1);
 }
 
-Controller::~Controller(){}
+GraspController::~GraspController(){}
 
 
 
 
-void Controller::jointsCallback(const sensor_msgs::JointStateConstPtr &msg){
+/*void GraspController::jointsCallback(const sensor_msgs::JointStateConstPtr &msg){
   if(simulation_){
     for(int i=0; i<4; i++){
       current_joints_[i]=0.0;
@@ -80,33 +80,33 @@ void Controller::jointsCallback(const sensor_msgs::JointStateConstPtr &msg){
     }
   }
   joints_init_=true;
-}
+}*/
 
-float Controller::calculateMaxPositiveVel(float current_joint, float max_joint_value, float acceleration, float sampling_duration){
+float GraspController::calculateMaxPositiveVel(float current_joint, float max_joint_value, float acceleration, float sampling_duration){
   if(current_joint>max_joint_value)
     return 0.0;
   return std::max(std::min((max_joint_value-current_joint)/sampling_duration/5, std::sqrt(2*acceleration*(max_joint_value-current_joint))),(float)0.0);
 }
 
-float Controller::calculateMaxNegativeVel(float current_joint, float min_joint_value, float acceleration, float sampling_duration){
+float GraspController::calculateMaxNegativeVel(float current_joint, float min_joint_value, float acceleration, float sampling_duration){
   if(current_joint<min_joint_value)
     return 0.0;
   return std::min(std::max((min_joint_value-current_joint)/sampling_duration/5, -std::sqrt(2*acceleration*(current_joint-min_joint_value))),(float)0.0);
 }
 
-float Controller::calculateMaxPositiveVel(float difference, float acceleration, float sampling_duration){
+float GraspController::calculateMaxPositiveVel(float difference, float acceleration, float sampling_duration){
   if(difference<0)
     return 0.0;
   return std::max(std::min(difference/sampling_duration/5, std::sqrt(2*acceleration*difference)),(float)0.0);
 }
 
-float Controller::calculateMaxNegativeVel(float difference, float acceleration, float sampling_duration){
+float GraspController::calculateMaxNegativeVel(float difference, float acceleration, float sampling_duration){
   if(difference>0)
     return 0.0;
   return std::min(std::max(difference/sampling_duration/5, -std::sqrt(2*acceleration*(-difference))),(float)0.0);
 }
 
-Eigen::Vector3d Controller::quaternionsSubstraction(Eigen::Quaterniond quat_desired, Eigen::Quaterniond quat_current){
+Eigen::Vector3d GraspController::quaternionsSubstraction(Eigen::Quaterniond quat_desired, Eigen::Quaterniond quat_current){
   if(quat_current.w()<0){
     quat_current.x()=-1*quat_current.x();
     quat_current.y()=-1*quat_current.y();
@@ -118,7 +118,7 @@ Eigen::Vector3d Controller::quaternionsSubstraction(Eigen::Quaterniond quat_desi
       quat_desired.y()=-1*quat_current.y();
       quat_desired.z()=-1*quat_current.z();
       quat_desired.w()=-1*quat_current.w();
-    }
+  }
   Eigen::Vector3d v1(quat_desired.x(), quat_desired.y(), quat_desired.z());
   Eigen::Vector3d v1_aux(quat_desired.x(), quat_desired.y(), quat_desired.z());
   Eigen::Vector3d v2(quat_current.x(), quat_current.y(), quat_current.z());
@@ -136,28 +136,34 @@ Eigen::Vector3d Controller::quaternionsSubstraction(Eigen::Quaterniond quat_desi
   return quat_current.w()*v1-quat_desired.w()*v2+v2_aux.cross(v1);
 }
 
-void Controller::goToGoal(){
+std::vector<float> GraspController::getSolution(std::vector<float> joints, std::vector<float> odom, std::vector<int> important_tasks){
   bool initialized=false;
+  current_joints_=joints;
+
+
+
 
   while(ros::ok() && !initialized){
-    if(joints_init_){
-      initialized=true;
-      for(int i=0; i<multitasks_.size(); i++){
-        if(!multitasks_[i]->goalsInitialized()){
-          initialized=false;
-          std::cout<<"Task "<<i<<" not initialized"<<std::endl;
-        }
+
+    initialized=true;
+    for(int i=0; i<multitasks_.size(); i++){
+      if(!multitasks_[i]->goalsInitialized()){
+        initialized=false;
+        std::cout<<"Task "<<i<<" not initialized"<<std::endl;
       }
     }
-    else{
-      std::cout<<"joints not initialized"<<std::endl;
-    }
+
+
     ros::Duration(sampling_duration_).sleep();
     ros::spinOnce();
   }
   std::cout<<"Topics initialized"<<std::endl;
-  while(ros::ok()){
-    try{
+  bool exit=false;
+
+
+  do{
+
+    /*try{
       tf::StampedTransform transform;
       listener.lookupTransform(world_tf_, vehicle_tf_, ros::Time(0), transform);
       Eigen::Quaterniond odom_rotation(transform.getRotation().w(), transform.getRotation().x(), transform.getRotation().y(), transform.getRotation().z());
@@ -168,102 +174,109 @@ void Controller::goToGoal(){
       odom[2]=transform.getOrigin().z();
       odom[3]=odom_euler[2];
       odom[4]=odom_euler[1];
-      odom[5]=odom_euler[0];
-
-
-      //Dina
-      /*tf::Matrix3x3 mat_odom(transform.getRotation());
-      double roll_d, pitch_d, yaw_d;
-      mat_odom.getRPY(roll_d, pitch_d, yaw_d);
-
-      odom[3]=roll_d;
-      odom[4]=pitch_d;
-      odom[5]=yaw_d;*/
-
-
-      ////////////////////////////PI Controller//////////////7777777
-
-
-      //pi_controller_->updateController(odom, current_joints_, ros::Time::now());
-
-      //////////////////////////////////////
-
-
-      std::vector<float> max_positive_joint_velocities, max_negative_joint_velocities;
-      for(int i=0; i<n_joints_; i++){
-        max_positive_joint_velocities.push_back(calculateMaxPositiveVel(current_joints_[i], max_joint_limit_[i], acceleration_, sampling_duration_));
-        //std::cout<< i<<"     "<<current_joints_[i]<<"    "<<max_joint_limit_[i]<<"    "<<max_positive_joint_velocities[i]<<std::endl;
-        max_negative_joint_velocities.push_back(calculateMaxNegativeVel(current_joints_[i], min_joint_limit_[i], acceleration_, sampling_duration_));
-        //std::cout<<max_positive_joint_velocities[i]<<"-----    "<<max_negative_joint_velocities[i]<<std::endl;
-      }
-      std::vector<std::vector<float> > max_negative_cartesian_velocities, max_positive_cartesian_velocities;
-      std::vector<std::vector<std::vector<float> > > max_cartesian_vels=calculateMaxCartesianVels(current_joints_, odom);
-      max_positive_cartesian_velocities=max_cartesian_vels[0];
-      max_negative_cartesian_velocities=max_cartesian_vels[1];
-      Eigen::MatrixXd T_k_complete;
-      Eigen::MatrixXd vels(n_joints_,1);
-      vels.setZero();
-
-      for(int i=multitasks_.size()-1; i>=0; i--){
-        std::cout<<"Multitask "<<i<<std::endl;
-        multitasks_[i]->setCurrentJoints(current_joints_);
-        multitasks_[i]->setOdom(odom);
-
-
-        multitasks_[i]->setMaxPositiveJointVelocity(max_positive_joint_velocities);
-        multitasks_[i]->setMaxNegativeJointVelocity(max_negative_joint_velocities);
-        multitasks_[i]->setMaxPositiveCartesianVelocity(max_positive_cartesian_velocities);
-        multitasks_[i]->setMaxNegativeCartesianVelocity(max_negative_cartesian_velocities);
-
-        vels=multitasks_[i]->calculateMultiTaskVel(vels, T_k_complete);
-        std::cout<<"Vels at the end of multitatsk "<<i<<std::endl;
-        std::cout<<vels<<std::endl;
-        T_k_complete=multitasks_[i]->getT_k_complete();
-      }
-
-      vels=limitVels(vels);
-      std::cout<<"vels to publish "<<std::endl;
-      std::cout<<vels<<std::endl;
-      std::cout<<"----------------------------"<<std::endl;
+      odom[5]=odom_euler[0];*/
 
 
 
 
-      ////////////////////////////PI Controller//////////////7777777
-     // std::cout<<"old vel"<<std::endl;
-      //std::cout<<vels<<std::endl;
-
-      //vels=pi_controller_->getVels(vels, ros::Time::now());
-
-     // std::cout<<vels<<std::endl;
-      //std::cout<<"---------"<<std::endl;
-
-      //////////////////////////////////////
 
 
-      //std::cout<<vels<<std::endl;
-
-      publishVels(vels);
-      //std::cout<<"despues publish"<<std::endl;
-
-      publishTwist(vels, odom);
-      publishPose(odom);
-      publishConstraints();
-
-
-
-
+    std::vector<float> max_positive_joint_velocities, max_negative_joint_velocities;
+    for(int i=0; i<n_joints_; i++){
+      max_positive_joint_velocities.push_back(calculateMaxPositiveVel(current_joints_[i], max_joint_limit_[i], acceleration_, sampling_duration_));
+      //std::cout<< i<<"     "<<current_joints_[i]<<"    "<<max_joint_limit_[i]<<"    "<<max_positive_joint_velocities[i]<<std::endl;
+      max_negative_joint_velocities.push_back(calculateMaxNegativeVel(current_joints_[i], min_joint_limit_[i], acceleration_, sampling_duration_));
+      //std::cout<<max_positive_joint_velocities[i]<<"-----    "<<max_negative_joint_velocities[i]<<std::endl;
     }
+    std::vector<std::vector<float> > max_negative_cartesian_velocities, max_positive_cartesian_velocities;
+    std::vector<std::vector<std::vector<float> > > max_cartesian_vels=calculateMaxCartesianVels(current_joints_, odom);
+    max_positive_cartesian_velocities=max_cartesian_vels[0];
+    max_negative_cartesian_velocities=max_cartesian_vels[1];
+    Eigen::MatrixXd T_k_complete;
+    Eigen::MatrixXd vels(n_joints_,1);
+    vels.setZero();
+
+    for(int i=multitasks_.size()-1; i>=0; i--){
+      //std::cout<<"Multitask "<<i<<std::endl;
+      multitasks_[i]->setCurrentJoints(current_joints_);
+      multitasks_[i]->setOdom(odom);
+
+
+      multitasks_[i]->setMaxPositiveJointVelocity(max_positive_joint_velocities);
+      multitasks_[i]->setMaxNegativeJointVelocity(max_negative_joint_velocities);
+      multitasks_[i]->setMaxPositiveCartesianVelocity(max_positive_cartesian_velocities);
+      multitasks_[i]->setMaxNegativeCartesianVelocity(max_negative_cartesian_velocities);
+
+      vels=multitasks_[i]->calculateMultiTaskVel(vels, T_k_complete);
+      //std::cout<<"Vels at the end of multitatsk "<<i<<std::endl;
+      //std::cout<<vels<<std::endl;
+      T_k_complete=multitasks_[i]->getT_k_complete();
+    }
+
+    vels=limitVels(vels);
+    /*std::cout<<"vels to publish "<<std::endl;
+    std::cout<<vels<<std::endl;
+    std::cout<<"----------------------------"<<std::endl;*/
+
+
+
+
+    Eigen::MatrixXd vels_zero(n_joints_,1);
+    vels_zero.setZero();
+    float error_total=0;
+    for(int j=0; j<important_tasks.size(); j++){
+      Eigen::MatrixXd error_zero=multitasks_[important_tasks[j]]->calculateError(vels_zero);
+      Eigen::MatrixXd error=multitasks_[important_tasks[j]]->calculateError(vels);
+      for(int i=0; i<error.rows(); i++){
+        std::cout<<error(i,0)<<" --- "<<error_zero(i,0)<<std::endl;
+        error_total+=std::abs(error(i,0))-std::abs(error_zero(i,0));
+      }
+    }
+    std::cout<<"Error= "<<error_total<<std::endl;
+    if(error_total>0 && isInsideLimits(odom)){
+      std::cout<<"Salgo por error positivo"<<std::endl;
+
+      return joints;
+    }
+
+    float vels_sum=0;
+    for(int i=4; i<8; i++){
+      current_joints_[i]+=0.5*vels(i,0);
+      vels_sum+=std::abs(vels(i,0));
+    }
+    vels_sum/=4;
+    std::cout<<"vels_sum= "<<vels_sum<<std::endl;
+    if(vels_sum<0.001 && isInsideLimits(odom)){
+      exit=true;
+      sleep(10);
+      return current_joints_;
+    }
+
+    std::cout<<isInsideLimits(odom)<<std::endl;
+    //publishVels(vels);
+    publishJoints(current_joints_);
+
+
+    publishTwist(vels, odom);
+    publishPose(odom);
+    publishConstraints();
+
+
+
+
+    /*}
     catch(tf::TransformException ex){
       ROS_ERROR("%s\n", ex.what());
       ros::Duration(sampling_duration_/10).sleep();
-    }
-    ros::Duration(sampling_duration_).sleep();
-  }
+    }*/
+    //ros::Duration(sampling_duration_).sleep();
+  }while(ros::ok() && !exit);
+
+  return joints;
 }
 
 
-Eigen::MatrixXd Controller::limitVels(Eigen::MatrixXd vels){
+Eigen::MatrixXd GraspController::limitVels(Eigen::MatrixXd vels){
   float max_vel=0;
   for(int i=0; i<vels.rows(); i++){
     if(std::abs(vels(i,0))>max_vel){
@@ -278,50 +291,9 @@ Eigen::MatrixXd Controller::limitVels(Eigen::MatrixXd vels){
   return vels;
 }
 
-void Controller::publishVels(Eigen::MatrixXd vels){
-
-  /*nav_msgs::Odometry odom_msg;
-
-  odom_msg.pose.pose.position.x=0.0;
-  odom_msg.pose.pose.position.y=0.0;
-  odom_msg.pose.pose.position.z=0.0;
-  odom_msg.pose.pose.orientation.x=0.0;
-  odom_msg.pose.pose.orientation.y=0.0;
-  odom_msg.pose.pose.orientation.z=0.0;
-  odom_msg.pose.pose.orientation.w=1.0;
-
-  odom_msg.twist.twist.linear.x=vels(0,0);
-  odom_msg.twist.twist.linear.y=vels(1,0);
-  odom_msg.twist.twist.linear.z=vels(2,0);
-  odom_msg.twist.twist.angular.x=0;
-  odom_msg.twist.twist.angular.y=0;
-  odom_msg.twist.twist.angular.z=vels(3,0);
-  for (int i=0; i<36; i++) {
-        odom_msg.twist.covariance[i]=0;
-        odom_msg.pose.covariance[i]=0;
-      }
-  odom_msg.header.stamp=ros::Time::now();
-
-  auv_msgs::BodyVelocityReq vehicle_msg;
-
-  vehicle_msg.header.stamp=ros::Time::now();
-  vehicle_msg.header.frame_id="girona500";
-  vehicle_msg.goal.requester="irslab";
-  vehicle_msg.goal.id=0;
-  vehicle_msg.goal.priority=10;
-  vehicle_msg.twist.linear.x=vels(0,0);
-  vehicle_msg.twist.linear.y=vels(1,0);
-  vehicle_msg.twist.linear.z=vels(2,0);
-  vehicle_msg.twist.angular.x=0;
-  vehicle_msg.twist.angular.y=0;
-  vehicle_msg.twist.angular.z=vels(3,0);
-
-  vehicle_msg.disable_axis.roll=true;
-  vehicle_msg.disable_axis.pitch=true;
+void GraspController::publishVels(Eigen::MatrixXd vels){
 
 
-
-*/
 
   sensor_msgs::JointState joint_msg;
   joint_msg.name.push_back("Slew");
@@ -353,8 +325,23 @@ void Controller::publishVels(Eigen::MatrixXd vels){
   ros::spinOnce();
 }
 
+void GraspController::publishJoints(std::vector<float> joints){
+  sensor_msgs::JointState joint_msg;
+  joint_msg.name.push_back("Slew");
+  joint_msg.name.push_back("Shoulder");
+  joint_msg.name.push_back("Elbow");
+  joint_msg.name.push_back("JawRotate");
+  joint_msg.name.push_back("JawOpening");
+  for(int i=4; i<8; i++){
+    joint_msg.position.push_back(joints[i]);
+  }
+  joint_msg.velocity.push_back(0);
+  joint_msg.header.stamp=ros::Time::now();
+  joints_pub_.publish(joint_msg);
 
-std::vector<std::vector<std::vector<float> > > Controller::calculateMaxCartesianVels(std::vector<float> joints, std::vector<float> odom){
+}
+
+std::vector<std::vector<std::vector<float> > > GraspController::calculateMaxCartesianVels(std::vector<float> joints, std::vector<float> odom){
   std::vector<std::vector<float> > max_negative_cartesian_vels, max_positive_cartesian_vels;
   for(int i=0; i<chains_.size(); i++){
     KDL::Chain chain_odom;
@@ -518,7 +505,7 @@ std::vector<std::vector<std::vector<float> > > Controller::calculateMaxCartesian
   return max_vels;
 }
 
-void Controller::publishStatus(Eigen::MatrixXd vels){
+void GraspController::publishStatus(Eigen::MatrixXd vels){
   task_priority::TaskPriority_msg msg;
   for(int i=0; i<multitasks_.size(); i++){
     msg.multi_task.push_back(multitasks_[i]->getMsg(vels));
@@ -528,7 +515,7 @@ void Controller::publishStatus(Eigen::MatrixXd vels){
   status_pub_.publish(msg);
 
 }
-void Controller::publishTwist(Eigen::MatrixXd vels, std::vector<float> odom){
+void GraspController::publishTwist(Eigen::MatrixXd vels, std::vector<float> odom){
 
   for(int i=0; i<chains_.size(); i++){
     Eigen::MatrixXd jac_cartesian(6, vels.rows());
@@ -585,7 +572,62 @@ void Controller::publishTwist(Eigen::MatrixXd vels, std::vector<float> odom){
   }
 }
 
-void Controller::publishPose(std::vector<float> odom){
+bool GraspController::isInsideLimits(std::vector<float> odom){
+  for(int i=0; i<current_joints_.size(); i++){
+    if(current_joints_[i]<min_joint_limit_[i] || current_joints_[i]> max_joint_limit_[i]){
+     std::cout<<"el joint "<<i<<"fuera del limite"<<std::endl;
+     std::cout<<current_joints_[i]<<"  "<<min_joint_limit_[i]<<"  "<<max_joint_limit_[i]<<std::endl;
+      return false;
+    }
+  }
+
+  for(int i=0; i<chains_.size(); i++){
+    KDL::Chain chain_odom;
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransY)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransZ)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotX)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotY)));
+    chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ)));
+    chain_odom.addChain(chains_[i]);
+    KDL::ChainFkSolverPos_recursive fk(chain_odom);
+
+    KDL::JntArray q(chain_odom.getNrOfJoints());
+    for(int j=0; j<odom.size(); j++){
+      q(j)=odom[j];
+
+    }
+    for(int j=0; j<chains_[i].getNrOfJoints(); j++){
+      q(j+odom.size())=current_joints_[chain_joint_relations_[i][j]];
+    }
+
+    KDL::Frame frame;
+    fk.JntToCart(q, frame);
+    double roll, pitch, yaw;
+    frame.M.GetEulerZYX(yaw, pitch, roll);
+
+    std::vector<float> current_pose;
+    current_pose.push_back(frame.p.x());
+    current_pose.push_back(frame.p.y());
+    current_pose.push_back(frame.p.z());
+    current_pose.push_back(roll);
+    current_pose.push_back(pitch);
+    current_pose.push_back(yaw);
+    //std::cout<<roll<<"   "<<pitch<<"   "<<yaw<<std::endl;
+
+   for(int j=0; j<6; j++){
+     if(current_pose[j]<min_cartesian_limits_[i][j] || current_pose[j]>max_cartesian_limits_[i][j]){
+       std::cout<<"cadena "<<i<<"cartesian "<<j<<"fuera del limite"<<std::endl;
+       std::cout<<current_pose[j]<<"  "<<min_cartesian_limits_[i][j]<<"  "<<max_cartesian_limits_[i][j]<<std::endl;
+       return false;
+     }
+   }
+
+  }
+  return true;
+}
+
+void GraspController::publishPose(std::vector<float> odom){
   for(int i=0; i<chains_.size(); i++){
     KDL::Chain chain_odom;
     chain_odom.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::TransX)));
@@ -631,7 +673,7 @@ void Controller::publishPose(std::vector<float> odom){
 
   }
 }
-void Controller::publishConstraints(){
+void GraspController::publishConstraints(){
   task_priority::HardConstraints_msg constraint;
   for(int i=0; i<max_joint_limit_.size(); i++){
     task_priority::JointConstraint_msg joint_con;
@@ -655,3 +697,4 @@ void Controller::publishConstraints(){
 
   constraints_pub_.publish(constraint);
 }
+

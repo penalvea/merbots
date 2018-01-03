@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   auv_msgs
+  geometry_msgs
   tf
   tf_conversions
   merbots_grasp_srv
@@ -21,18 +22,20 @@ Error_msg.msg
 HardConstraints_msg.msg
 CartesianConstraint_msg.msg
 JointConstraint_msg.msg
+ObjectPose_msg.msg
 )
 
 generate_messages(
     DEPENDENCIES
     std_msgs
+    geometry_msgs
     )
 
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS kdl_conversions roscpp std_msgs merbots_grasp_srv
+  CATKIN_DEPENDS kdl_conversions roscpp std_msgs geometry_msgs merbots_grasp_srv
   DEPENDS orocos_kdl
 )
 
@@ -54,7 +57,8 @@ add_library(${PROJECT_NAME}
   src/task.cpp
   src/goal.cpp
   src/controller.cpp
-  src/pi_controller.cpp)
+  src/pi_controller.cpp
+  src/grasp_planning_controller.cpp)
 #target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${orocos_kdl_LIBRARIES})
 #add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 
@@ -77,4 +81,12 @@ target_link_libraries(listener
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
+
+add_executable(grasp_planning src/grasp_planning_main.cpp)
+target_link_libraries(grasp_planning
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+)
+
+
 

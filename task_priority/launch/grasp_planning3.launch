@@ -1,0 +1,13 @@
+<launch>
+
+<arg name="kinematic_base" value="girona500/kinematic_base"/>
+<arg name="end_effector" value="girona500/end_effector"/>
+<arg name="grasp_pose" value="grasp_pose"/>
+<arg name="grasp" value="grasp"/>
+<node name="static_tf_base_grasp" type="static_transform_publisher" pkg="tf" args="-0.123 0.12 0.85 -2.4 0.0 0.0 $(arg kinematic_base) $(arg grasp_pose) 100"/>
+<node name="static_tf_end_effector_grasp" type="static_transform_publisher" pkg="tf" args="0.0 0.0 0.2 0.0 0.0 0.0 $(arg end_effector) $(arg grasp) 100"/>
+        <rosparam command="load" file="$(find task_priority)/launch/grasp_planning3.yaml" />
+
+        <node name="multi_task_priority" pkg="task_priority" type="multi_task_priority" output="screen" respawn="false"/>
+ 
+</launch>

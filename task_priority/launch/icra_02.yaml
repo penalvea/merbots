@@ -53,19 +53,25 @@ auv/min_cartesian_limit: [-20,-20,-20, -20, -20, -20]
 
 
 
-multitask_priority: [ fixed_multi, joints_multi]
+multitask_priority: [ fixed_multi]
 
 
 
 
 
-fixed_multi/tasks: [fixed_task]
+fixed_multi/tasks: [one_task]
 
 fixed_multi/joint_priority_1: [0,1,2,3,4,5,6]
 
 
 
-
+one_task/chain: auv_arm
+one_task/cartesian: True
+one_task/mask_cartesian: [1, 1, 0, 0, 0, 0]
+one_task/mask_joint: [0,0, 0,0,1,1,1,0]
+one_task/goal_type: Fixed
+one_task/goal/desired_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+one_task/frame_inertial: True
 
 
 

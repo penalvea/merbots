@@ -1,0 +1,141 @@
+acceleration: 20
+max_joint_vel: 2.0
+max_cartesian_vel: 2.0
+sampling_duration: 0.1
+
+simulation: true
+
+n_joints: 8
+
+max_joint_limit: [0,   0,  0,  0,  0.4, 1.37, 1.4529, 3.14]
+min_joint_limit: [-0, -0, 0, 0, -1.0, 0.1,  0.1, -3.14]
+
+
+PID_p_values: [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
+PID_i_values: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+PID_d_values: [0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02]
+
+arm_joint_state_topic: /uwsim/joint_state
+arm_joint_command_topic: /uwsim/joint_state_command
+vehicle_tf: girona500
+world_tf: grasp_pose
+vehicle_command_topic: /dataNavigator2
+
+
+chain_names: [ auv_arm, auv_grasp]
+
+
+
+auv_arm/joint_1: [TransX]
+auv_arm/joint_2: [TransY]
+auv_arm/joint_3: [TransZ]
+auv_arm/joint_4: [RotZ, 0.0, 0.0, 1.08, 3.1415]
+auv_arm/joint_5: [RotZ, 0.08052, 1.5708, 0.0, 0.0]
+auv_arm/joint_6: [RotZ, 0.44278, 0.0, 0.0, 0.139277274]
+auv_arm/joint_7: [RotZ, -0.083, 1.5708, 0.0, 1.972222055]
+auv_arm/joint_8: [RotZ, 0.0, 0.0, 0.49938, 0.0]
+
+
+auv_arm/chain_joint_relation: [0, 1, 2, 3, 4, 5, 6, 7]
+auv_arm/max_cartesian_limit: [20,20,20, 20, 20, 20]
+auv_arm/min_cartesian_limit: [-20,-20,-20, -20, -20, -20]
+
+auv_grasp/joint_1: [TransX]
+auv_grasp/joint_2: [TransY]
+auv_grasp/joint_3: [TransZ]
+auv_grasp/joint_4: [RotZ, 0.0, 0.0, 1.08, 3.1415]
+auv_grasp/joint_5: [RotZ, 0.08052, 1.5708, 0.0, 0.0]
+auv_grasp/joint_6: [RotZ, 0.44278, 0.0, 0.0, 0.139277274]
+auv_grasp/joint_7: [RotZ, -0.083, 1.5708, 0.0, 1.972222055]
+auv_grasp/joint_8: [RotZ, 0.0, 0.0, 0.69938, 0.0]
+
+
+auv_grasp/chain_joint_relation: [0, 1, 2, 3, 4, 5, 6, 7]
+auv_grasp/max_cartesian_limit: [20,20,20, 20, 20, 20]
+auv_grasp/min_cartesian_limit: [-20,-20,-20, -20, -20, -20]
+
+
+auv/joint_1: [TransX]
+auv/joint_2: [TransY]
+auv/joint_3: [TransZ]
+auv/joint_4: [RotZ]
+
+auv/chain_joint_relation: [0, 1, 2, 3]
+auv/max_cartesian_limit: [20.0,20, 20, 20, 20, 20]
+auv/min_cartesian_limit: [-20,-20,-20, -20, -20, -20]
+
+
+
+
+
+
+
+
+multitask_priority: [auv_stop, fixed_multi2, fixed_multi]
+
+
+
+
+
+fixed_multi/tasks: [task1]
+
+fixed_multi/joint_priority_1: [4,5,6,7]
+
+fixed_multi2/tasks: [task2]
+
+fixed_multi2/joint_priority_1: [4,5,6,7]
+
+auv_stop/tasks: [auv_stop_task]
+
+auv_stop/joint_priority_1: [0,1,2,3]
+
+slew_zero_multi/tasks: [slew_zero]
+slew_zero_multi/joint_priority_1: [4]
+
+
+
+task1/chain: auv_grasp
+task1/cartesian: True
+task1/mask_cartesian: [0, 0, 0, 1, 1, 1]
+task1/mask_joint: [0,0, 0,0,1,1,1,1]
+task1/goal_type: Fixed
+task1/goal/desired_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+task1/frame_inertial: True
+
+task2/chain: auv_grasp
+task2/cartesian: True
+task2/mask_cartesian: [1, 1, 1, 0, 0, 0]
+task2/mask_joint: [0,0, 0,0,1,1,1,1]
+task2/goal_type: Fixed
+task2/goal/desired_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+task2/frame_inertial: True
+
+
+
+
+
+joints_multi/tasks: [yaw_task, joints_task]
+joints_multi/joint_priority_1: [0,1,2,3,4,5,6,7]
+
+
+
+
+auv_stop_task/chain: auv_arm
+auv_stop_task/cartesian: False
+auv_stop_task/mask_cartesian: [0, 0, 0, 0, 0, 0]
+auv_stop_task/mask_joint: [1,1, 1, 1, 0, 0,0,0]
+auv_stop_task/goal_type: Joints
+auv_stop_task/goal/joints_position: [0, 0, 0, 0, -0.0, 0.0, 0.0, 0.0]
+auv_stop_task/frame_inertial: True
+
+
+slew_zero/chain: auv_arm
+slew_zero/cartesian: False
+slew_zero/mask_cartesian: [0, 0, 0, 0, 0, 0]
+slew_zero/mask_joint: [0,0, 0, 0, 1, 0,0,0]
+slew_zero/goal_type: Joints
+slew_zero/goal/joints_position: [0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0]
+slew_zero/frame_inertial: True
+
+
+

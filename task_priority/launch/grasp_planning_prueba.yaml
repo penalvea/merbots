@@ -1,0 +1,97 @@
+acceleration: 2
+max_joint_vel: 1.0
+max_cartesian_vel: 0.05
+sampling_duration: 0.01
+
+gripper_width: 0.1
+
+
+n_joints: 4
+
+max_joint_limit: [0.4, 1.37, 1.4529, 0.05]
+min_joint_limit: [-1.0, 0.1,  0.1, -0.05]
+
+
+
+
+
+chain_names: [palm]
+
+
+
+
+grasp/joint_1: [RotZ, 0.08052, 1.5708, 0.0, 0.0]
+grasp/joint_2: [RotZ, 0.44278, 0.0, 0.0, 0.139277274]
+grasp/joint_3: [RotZ, -0.083, 1.5708, 0.0, 1.972222055]
+grasp/joint_4: [RotZ, 0.0, 0.0, 0.59938, 0.0]
+
+
+grasp/chain_joint_relation: [0, 1, 2, 3]
+
+
+
+
+palm/joint_1: [RotZ, 0.08052, 1.5708, 0.0, 0.0]
+palm/joint_2: [RotZ, 0.44278, 0.0, 0.0, 0.139277274]
+palm/joint_3: [RotZ, -0.083, 1.5708, 0.0, 1.972222055]
+palm/joint_4: [RotZ, 0.0, 0.0, 0.49938, 0.0]
+
+palm/chain_joint_relation: [0, 1, 2, 3]
+
+
+
+
+multitask_priority: [ z_multi]
+
+
+
+
+
+z_multi/tasks: [z_grasp_task]
+z_multi/joint_priority_1: [0,1,2,3]
+
+
+
+
+
+
+
+
+
+
+z_palm_task/chain: palm
+z_palm_task/cartesian: True
+z_palm_task/mask_cartesian: [0, 0, 1, 0, 0, 0]
+z_palm_task/mask_joint: [1,1, 1,1]
+
+
+z_grasp_task/chain: palm
+z_grasp_task/cartesian: True
+z_grasp_task/mask_cartesian: [1, 1, 0, 0, 0, 0]
+z_grasp_task/mask_joint: [1,1, 1,0]
+
+
+pitch_grasp_task/chain: grasp
+pitch_grasp_task/cartesian: True
+pitch_grasp_task/mask_cartesian: [0, 0, 0, 0, 1, 0]
+pitch_grasp_task/mask_joint: [1,1, 1,1]
+
+yaw_grasp_task/chain: grasp
+yaw_grasp_task/cartesian: True
+yaw_grasp_task/mask_cartesian: [0, 0, 0, 0, 0, 1]
+yaw_grasp_task/mask_joint: [1,1, 1,1]
+
+x_grasp_task/chain: grasp
+x_grasp_task/cartesian: True
+x_grasp_task/mask_cartesian: [1, 0, 0, 0, 0, 0]
+x_grasp_task/mask_joint: [1,1, 1,1]
+
+y_grasp_task/chain: grasp
+y_grasp_task/cartesian: True
+y_grasp_task/mask_cartesian: [1, 0, 0, 0, 0, 0]
+y_grasp_task/mask_joint: [1,1, 1,1]
+
+
+
+
+

@@ -3,6 +3,7 @@
 #include <string>
 #include <boost/lexical_cast.hpp>
 #include "task_priority/controller.hpp"
+#include "task_priority/grasp_planning_controller.hpp"
 
 
 int main(int argc, char **argv){
@@ -19,9 +20,14 @@ int main(int argc, char **argv){
   nh.getParam("sampling_duration", sampling_duration);
   ROS_INFO("Sampling duration: %f", sampling_duration);
 
-  bool simulation;
+  bool simulation=true;
   nh.getParam("simulation", simulation);
   ROS_INFO("Simulation: %d", simulation);
+
+  bool grasp_planning=false;
+  nh.getParam("grasp_planning", grasp_planning);
+  ROS_INFO("Grasp_planning: %d", grasp_planning);
+
 
   int n_joints;
   nh.getParam("n_joints", n_joints);
@@ -326,15 +332,19 @@ int main(int argc, char **argv){
       tasks.push_back(task);
 
     }
-  MultiTaskPtr multi(new MultiTask(tasks, chains, chain_joint_relations, joint_priority, max_joint_vel, multitask_priority[i]));
-  multitasks.push_back(multi);
+    MultiTaskPtr multi(new MultiTask(tasks, chains, chain_joint_relations, joint_priority, max_joint_vel, multitask_priority[i]));
+    multitasks.push_back(multi);
   }
 
 
-
-
+  /*if(grasp_planning){
+    GraspControllerPtr grasp_controller(new GraspController(multitasks, n_joints, max_joint_limit, min_joint_limit, max_cartesian_limits, min_cartesian_limits, max_cartesian_vel, acceleration, max_joint_vel, sampling_duration, nh, arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic, chains, chain_joint_relations, simulation, p_values, i_values, d_values));
+    grasp_controller->goToGoal();
+  }
+  else{*/
   ControllerPtr controller(new Controller(multitasks, n_joints, max_joint_limit, min_joint_limit, max_cartesian_limits, min_cartesian_limits, max_cartesian_vel, acceleration, max_joint_vel, sampling_duration, nh, arm_joint_state_topic, arm_joint_command_topic, vehicle_tf, world_tf, vehicle_command_topic, chains, chain_joint_relations, simulation, p_values, i_values, d_values));
   controller->goToGoal();
+  //}
 
 
   return 0;

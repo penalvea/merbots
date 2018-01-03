@@ -1,0 +1,5 @@
+<launch>
+        <rosparam command="load" file="$(find task_priority)/launch/grasp_planning_prueba.yaml" />
+
+        <node name="grasp_planning" pkg="task_priority" type="grasp_planning" output="screen" respawn="false"/>
+</launch>

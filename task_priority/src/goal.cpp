@@ -74,15 +74,16 @@ void Goal::setMaxJointVel(float max_joint_vel){
 }
 
 Eigen::MatrixXd Goal::limitCartesianVel(Eigen::MatrixXd vels){
+  float current_max=max_cartesian_vel_;
   float max=0;
   for(int i=0; i<vels.rows(); i++){
     if(std::abs(vels(i,0))>max){
       max=std::abs(vels(i,0));
     }
   }
-  if(max>max_cartesian_vel_){
+  if(max>current_max){
     for(int i=0; i<vels.rows(); i++){
-      vels(i,0)=vels(i,0)*max_cartesian_vel_/max;
+      vels(i,0)=vels(i,0)*current_max/max;
     }
   }
   return vels;
@@ -95,8 +96,8 @@ Eigen::MatrixXd Goal::limitJointVel(Eigen::MatrixXd vels){
       max=std::abs(vels(i,0));
     }
   }
-  std::cout<<"max vel="<<max<<std::endl;
-  std::cout<<"max_joint_vel="<<max_joint_vel_<<std::endl;
+  //std::cout<<"max vel="<<max<<std::endl;
+  //std::cout<<"max_joint_vel="<<max_joint_vel_<<std::endl;
   if(max>max_joint_vel_){
     for(int i=0; i<vels.rows(); i++){
       vels(i,0)=vels(i,0)*max_joint_vel_/max;
@@ -143,6 +144,9 @@ GoalFixedPose::~GoalFixedPose(){}
 
 
 Eigen::MatrixXd GoalFixedPose::getGoal(std::vector<float> joints, std::vector<float> odom){
+  /*std::cout<<"Calculando el error Goal"<<std::endl;
+  std::cout<<"odom "<<odom[0]<<" "<<odom[1]<<" "<<odom[2]<<std::endl;
+  std::cout<<"Goal "<<goal_(0,0)<<" "<<goal_(1,0)<<" "<<goal_(2,0)<<std::endl;*/
   KDL::JntArray jq(odom.size()+joints_relation_.size());
   for(int i=0; i<odom.size(); i++){
     jq(i)=odom[i];
@@ -163,6 +167,7 @@ Eigen::MatrixXd GoalFixedPose::getGoal(std::vector<float> joints, std::vector<fl
   Eigen::Quaterniond quat_desired(current);
   Eigen::Vector3d diff=quaternionsSubstraction(quat_desired, quat_current);
   Eigen::MatrixXd cartesian_vel(6,1);
+  //std::cout<<"cartpos "<<cartpos.p.x()<<" "<<cartpos.p.y()<<" "<<cartpos.p.z()<<std::endl;
   cartesian_vel(0,0)=goal_(0,0)-cartpos.p.x() + getCartesianOffset()(0,0);
   cartesian_vel(1,0)=goal_(1,0)-cartpos.p.y() + getCartesianOffset()(1,0);
   cartesian_vel(2,0)=goal_(2,0)-cartpos.p.z() + getCartesianOffset()(2,0);
@@ -365,11 +370,11 @@ Eigen::MatrixXd GoalJointsPosition::getGoal(std::vector<float> joints, std::vect
     }
   }
   last_joint_vel_=mat;
-  std::cout<<"mat antes"<<std::endl;
-  std::cout<<mat<<std::endl;
+  //std::cout<<"mat antes"<<std::endl;
+  //std::cout<<mat<<std::endl;
   mat=limitJointVel(mat);
-  std::cout<<"mat despues"<<std::endl;
-  std::cout<<mat<<std::endl;
+  //std::cout<<"mat despues"<<std::endl;
+  //std::cout<<mat<<std::endl;
   return mat;
 }
 
